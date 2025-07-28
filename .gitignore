@@ -184,4 +184,5 @@ build/
 *.pid
 
 #env
-.env*
+BackEnd/MedBotAssist.BotOpenIA/.env
+**/*.env
