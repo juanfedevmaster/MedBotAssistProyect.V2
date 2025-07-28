@@ -46,7 +46,7 @@ steps:
 
 - task: AzureWebApp@1
   inputs:
-    azureSubscription: 'github.com_juanfedevmaster'
+    azureSubscription: 'Azure subscription 1 (e40e28d8-f53d-43b8-898b-2c93dc9ef814)'
     appType: 'webApp'
     appName: 'medbotassist'
     package: '$(Build.ArtifactStagingDirectory)/**/*.zip'
