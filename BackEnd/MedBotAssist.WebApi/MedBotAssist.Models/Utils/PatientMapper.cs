@@ -67,6 +67,17 @@ namespace MedBotAssist.Models.Utils
             };
         }
 
+        public static MedicalNote MedicalNoteDTOToMedicalNote(MedicalNoteResponseDto medicalNoteResponseDto)
+        {
+            return new MedicalNote
+            {
+                NoteId = medicalNoteResponseDto.NoteId,
+                CreationDate = medicalNoteResponseDto.CreationDate,
+                FreeText = medicalNoteResponseDto.FreeText,
+                AppointmentId = medicalNoteResponseDto.AppointmentId
+            };
+        }
+
         private static int CalculateAge(DateOnly birthDate)
         {
             var today = DateOnly.FromDateTime(DateTime.Today);

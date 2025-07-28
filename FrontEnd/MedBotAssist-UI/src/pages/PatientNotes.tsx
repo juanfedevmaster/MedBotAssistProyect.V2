@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { PatientInfoWithClinicalDto } from '../types';
+import { PatientInfoWithClinicalDto, ClinicalSummaryCreateDto, MedicalNoteCreateDto } from '../types';
 import ApiService from '../services/apiService';
 import TokenManager from '../utils/tokenManager';
 import { API_ENDPOINTS } from '../config/endpoints';
@@ -24,51 +24,87 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
   const [medicalHistory, setMedicalHistory] = useState<string>('');
   const [aiLoading, setAiLoading] = useState(false);
   const [showAiModal, setShowAiModal] = useState(false);
+  const [appointmentId, setAppointmentId] = useState<number>(() => {
+    // Intentar obtener appointmentId de la URL o localStorage, sino usar 1 por defecto
+    const urlParams = new URLSearchParams(window.location.search);
+    const appointmentFromUrl = urlParams.get('appointmentId');
+    if (appointmentFromUrl) {
+      return parseInt(appointmentFromUrl);
+    }
+    const storedAppointmentId = localStorage.getItem(`appointmentId_${id}`);
+    return storedAppointmentId ? parseInt(storedAppointmentId) : 1;
+  });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _setAppointmentId = setAppointmentId; // Mantener para uso futuro
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  
+  // Estados para el clinical summary
+  const [diagnosis, setDiagnosis] = useState<string>('');
+  const [treatment, setTreatment] = useState<string>('');
+  const [recommendations, setRecommendations] = useState<string>('');
+  const [nextSteps, setNextSteps] = useState<string>('');
+
+  // Guardar appointmentId en localStorage cuando cambie
+  useEffect(() => {
+    if (id && appointmentId) {
+      localStorage.setItem(`appointmentId_${id}`, appointmentId.toString());
+    }
+  }, [id, appointmentId]);
+
+  // Cargar datos del paciente
+  const loadPatientData = useCallback(async () => {
+    const isAuthenticated = TokenManager.isAuthenticated();
+    
+    if (!id || !isAuthenticated) {
+      setError('Patient ID not found or user not authenticated');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await ApiService.getPatientById(id);
+      const patientData = await response.json();
+      setPatient(patientData);
+      
+      // Formatear historia clínica
+      let historyText = '';
+      if (patientData.clinicalSummaries && patientData.clinicalSummaries.length > 0) {
+        patientData.clinicalSummaries.forEach((summary: any) => {
+          historyText += `DIAGNOSIS: ${summary.diagnosis}\n`;
+          historyText += `TREATMENT: ${summary.treatment}\n`;
+          historyText += `RECOMMENDATIONS: ${summary.recommendations}\n`;
+          historyText += `NEXT STEPS: ${summary.nextSteps}\n`;
+          
+          if (summary.medicalNote) {
+            const noteDate = new Date(summary.medicalNote.creationDate).toLocaleDateString();
+            historyText += `\n- ${noteDate}\n${summary.medicalNote.freeText}\n\n`;
+          }
+          historyText += '---\n\n';
+        });
+      }
+      setMedicalHistory(historyText);
+      
+      // Poblar campos del clinical summary con la última entrada
+      if (patientData.clinicalSummaries && patientData.clinicalSummaries.length > 0) {
+        const lastSummary = patientData.clinicalSummaries[patientData.clinicalSummaries.length - 1];
+        setDiagnosis(lastSummary.diagnosis || '');
+        setTreatment(lastSummary.treatment || '');
+        setRecommendations(lastSummary.recommendations || '');
+        setNextSteps(lastSummary.nextSteps || '');
+      }
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load patient data');
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
 
   // Cargar datos del paciente
   useEffect(() => {
-    const loadPatient = async () => {
-      const isAuthenticated = TokenManager.isAuthenticated();
-      
-      if (!id || !isAuthenticated) {
-        setError('Patient ID not found or user not authenticated');
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        const response = await ApiService.getPatientById(id);
-        const patientData = await response.json();
-        setPatient(patientData);
-        
-        // Formatear historia clínica
-        let historyText = '';
-        if (patientData.clinicalSummaries && patientData.clinicalSummaries.length > 0) {
-          patientData.clinicalSummaries.forEach((summary: any) => {
-            historyText += `DIAGNOSIS: ${summary.diagnosis}\n`;
-            historyText += `TREATMENT: ${summary.treatment}\n`;
-            historyText += `RECOMMENDATIONS: ${summary.recommendations}\n`;
-            historyText += `NEXT STEPS: ${summary.nextSteps}\n`;
-            
-            if (summary.medicalNote) {
-              const noteDate = new Date(summary.medicalNote.creationDate).toLocaleDateString();
-              historyText += `\n- ${noteDate}\n${summary.medicalNote.freeText}\n\n`;
-            }
-            historyText += '---\n\n';
-          });
-        }
-        setMedicalHistory(historyText);
-        
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load patient data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadPatient();
-  }, [id]);
+    loadPatientData();
+  }, [loadPatientData]);
 
   const handleLogout = () => {
     TokenManager.clearAuthData();
@@ -94,29 +130,73 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
       setError('Please enter some notes before saving');
       return;
     }
+    
+    if (!diagnosis.trim() || !treatment.trim() || !recommendations.trim() || !nextSteps.trim()) {
+      setError('Please fill in all clinical summary fields (diagnosis, treatment, recommendations, next steps)');
+      return;
+    }
 
+    // Mostrar modal de confirmación
+    setShowSaveModal(true);
+  };
+
+  const handleConfirmSaveNotes = async () => {
+    setShowSaveModal(false);
+    
     try {
       setSaving(true);
       setError('');
       
-      // TODO: Implementar endpoint para guardar notas
-      // await ApiService.savePatientNotes(id, notes);
+      // Preparar la nota médica
+      const medicalNote: MedicalNoteCreateDto = {
+        noteId: 0,
+        creationDate: new Date().toISOString(),
+        freeText: notes,
+        appointmentId: appointmentId
+      };
       
-      // Simulación temporal
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Preparar el clinical summary completo
+      const clinicalSummaryData: ClinicalSummaryCreateDto = {
+        summaryId: 0,
+        diagnosis: diagnosis,
+        treatment: treatment,
+        recommendations: recommendations,
+        nextSteps: nextSteps,
+        generatedDate: new Date().toISOString(),
+        medicalNote: medicalNote
+      };
       
-      setSuccess('Notes saved successfully!');
+      // Llamar al API para crear el clinical summary
+      const response = await ApiService.createClinicalSummary(clinicalSummaryData);
       
-      // Limpiar el mensaje de éxito después de 3 segundos
-      setTimeout(() => {
-        setSuccess('');
-      }, 3000);
+      if (response.ok) {
+        setSuccess('Clinical summary and medical note saved successfully!');
+        // Limpiar todos los campos después de guardar
+        setNotes('');
+        setDiagnosis('');
+        setTreatment('');
+        setRecommendations('');
+        setNextSteps('');
+        
+        // Mostrar mensaje de éxito por 2 segundos y luego recargar los datos del paciente
+        setTimeout(() => {
+          setSuccess('');
+          // Recargar los datos del paciente para mostrar la nueva nota en el historial
+          loadPatientData();
+        }, 2000);
+      } else {
+        throw new Error('Failed to save clinical summary');
+      }
       
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save notes');
+      setError(err instanceof Error ? err.message : 'Failed to save clinical summary');
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCancelSaveNotes = () => {
+    setShowSaveModal(false);
   };
 
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -463,13 +543,115 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
                 </small>
               </div>
 
+              {/* Campos del Clinical Summary */}
+              <div className="row mb-4">
+                <div className="col-12">
+                  <h5 className="mb-3" style={{ color: '#405de6' }}>
+                    <i className="bi bi-clipboard-data me-2"></i>
+                    Clinical Summary
+                    {patient?.clinicalSummaries && patient.clinicalSummaries.length > 0 && (
+                      <small className="ms-2 text-muted fs-6">
+                        <i className="bi bi-info-circle me-1"></i>
+                        Pre-filled with last consultation data
+                      </small>
+                    )}
+                  </h5>
+                </div>
+                
+                <div className="col-md-6 mb-3">
+                  <label htmlFor="diagnosis" className="form-label">
+                    <i className="bi bi-search me-2"></i>
+                    Diagnosis *
+                  </label>
+                  <textarea
+                    className="form-control"
+                    id="diagnosis"
+                    rows={3}
+                    value={diagnosis}
+                    onChange={(e) => setDiagnosis(e.target.value)}
+                    placeholder="Enter the diagnosis..."
+                  />
+                </div>
+                
+                <div className="col-md-6 mb-3">
+                  <label htmlFor="treatment" className="form-label">
+                    <i className="bi bi-prescription2 me-2"></i>
+                    Treatment *
+                  </label>
+                  <textarea
+                    className="form-control"
+                    id="treatment"
+                    rows={3}
+                    value={treatment}
+                    onChange={(e) => setTreatment(e.target.value)}
+                    placeholder="Enter the treatment plan..."
+                  />
+                </div>
+                
+                <div className="col-md-6 mb-3">
+                  <label htmlFor="recommendations" className="form-label">
+                    <i className="bi bi-lightbulb me-2"></i>
+                    Recommendations *
+                  </label>
+                  <textarea
+                    className="form-control"
+                    id="recommendations"
+                    rows={3}
+                    value={recommendations}
+                    onChange={(e) => setRecommendations(e.target.value)}
+                    placeholder="Enter recommendations..."
+                  />
+                </div>
+                
+                <div className="col-md-6 mb-3">
+                  <label htmlFor="nextSteps" className="form-label">
+                    <i className="bi bi-arrow-right-circle me-2"></i>
+                    Next Steps *
+                  </label>
+                  <textarea
+                    className="form-control"
+                    id="nextSteps"
+                    rows={3}
+                    value={nextSteps}
+                    onChange={(e) => setNextSteps(e.target.value)}
+                    placeholder="Enter next steps..."
+                  />
+                </div>
+              </div>
+
+              {/* Campo para appointmentId */}
+              <div className="mb-3">
+                <label htmlFor="appointmentId" className="form-label">
+                  <i className="bi bi-calendar-check me-2"></i>
+                  Appointment ID
+                </label>
+                <input
+                  type="number"
+                  className="form-control"
+                  id="appointmentId"
+                  value={appointmentId}
+                  readOnly
+                  min="1"
+                  style={{ 
+                    maxWidth: '200px',
+                    backgroundColor: '#f8f9fa',
+                    cursor: 'not-allowed'
+                  }}
+                  placeholder="Enter appointment ID"
+                />
+                <small className="text-muted">
+                  <i className="bi bi-info-circle me-1"></i>
+                  ID of the appointment for this medical note (read-only)
+                </small>
+              </div>
+
               {/* Botón para guardar notas */}
               <div className="d-flex justify-content-end">
                 <button 
                   className="btn"
                   style={{ backgroundColor: '#405de6', color: '#fff' }}
                   onClick={handleSaveNotes}
-                  disabled={saving || !notes.trim()}
+                  disabled={saving || !notes.trim() || !diagnosis.trim() || !treatment.trim() || !recommendations.trim() || !nextSteps.trim()}
                 >
                   {saving ? (
                     <>
@@ -479,7 +661,7 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
                   ) : (
                     <>
                       <i className="bi bi-save me-2"></i>
-                      Save Notes
+                      Save Clinical Summary
                     </>
                   )}
                 </button>
@@ -540,6 +722,107 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
                 >
                   <i className="bi bi-magic me-2"></i>
                   Yes, Improve Note
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación para guardar nota médica */}
+      {showSaveModal && (
+        <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  <i className="bi bi-save me-2"></i>
+                  Save Clinical Summary
+                </h5>
+                <button 
+                  type="button" 
+                  className="btn-close" 
+                  onClick={handleCancelSaveNotes}
+                  aria-label="Close"
+                ></button>
+              </div>
+              <div className="modal-body">
+                <p className="mb-3">
+                  <i className="bi bi-question-circle text-warning me-2"></i>
+                  Are you sure you want to save this clinical summary and medical note?
+                </p>
+                
+                {/* Clinical Summary Information */}
+                <div className="bg-light p-3 rounded mb-3">
+                  <h6 className="mb-3">
+                    <i className="bi bi-clipboard-data me-2"></i>
+                    Clinical Summary
+                  </h6>
+                  <div className="row">
+                    <div className="col-6">
+                      <small className="text-muted d-block">Diagnosis:</small>
+                      <p className="mb-2 small">{diagnosis}</p>
+                    </div>
+                    <div className="col-6">
+                      <small className="text-muted d-block">Treatment:</small>
+                      <p className="mb-2 small">{treatment}</p>
+                    </div>
+                    <div className="col-6">
+                      <small className="text-muted d-block">Recommendations:</small>
+                      <p className="mb-2 small">{recommendations}</p>
+                    </div>
+                    <div className="col-6">
+                      <small className="text-muted d-block">Next Steps:</small>
+                      <p className="mb-2 small">{nextSteps}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Medical Note Information */}
+                <div className="bg-light p-3 rounded">
+                  <h6 className="mb-2">
+                    <i className="bi bi-file-medical me-2"></i>
+                    Medical Note
+                  </h6>
+                  <small className="text-muted d-block mb-2">Note content:</small>
+                  <p className="mb-0 small" style={{ maxHeight: '100px', overflowY: 'auto' }}>
+                    {notes}
+                  </p>
+                </div>
+                
+                <div className="mt-3">
+                  <small className="text-muted">
+                    <i className="bi bi-info-circle me-1"></i>
+                    Patient ID: {patient?.patientId} | Appointment ID: {appointmentId}
+                  </small>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={handleCancelSaveNotes}
+                >
+                  <i className="bi bi-x-lg me-2"></i>
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-success" 
+                  onClick={handleConfirmSaveNotes}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-check-lg me-2"></i>
+                      Yes, Save Clinical Summary
+                    </>
+                  )}
                 </button>
               </div>
             </div>

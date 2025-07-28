@@ -80,6 +80,20 @@ export class ApiService {
     });
   }
 
+  static async createMedicalNote(noteData: any) {
+    return this.authenticatedFetch(API_ENDPOINTS.MEDICAL_NOTE_CREATE, {
+      method: 'POST',
+      body: JSON.stringify(noteData),
+    });
+  }
+
+  static async createClinicalSummary(summaryData: any) {
+    return this.authenticatedFetch(API_ENDPOINTS.MEDICAL_NOTE_CREATE, {
+      method: 'POST',
+      body: JSON.stringify(summaryData),
+    });
+  }
+
   // Método para verificar si el token sigue siendo válido
   static async validateToken(): Promise<boolean> {
     if (!TokenManager.isAuthenticated()) return false;

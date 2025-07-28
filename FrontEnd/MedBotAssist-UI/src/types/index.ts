@@ -52,6 +52,13 @@ export interface MedicalNote {
     appointmentId: number;
 }
 
+export interface MedicalNoteCreateDto {
+    noteId: number;
+    creationDate: string;
+    freeText: string;
+    appointmentId: number;
+}
+
 export interface ClinicalSummary {
     summaryId: number;
     diagnosis: string;
@@ -60,6 +67,16 @@ export interface ClinicalSummary {
     nextSteps: string;
     generatedDate: string;
     medicalNote: MedicalNote;
+}
+
+export interface ClinicalSummaryCreateDto {
+    summaryId: number;
+    diagnosis: string;
+    treatment: string;
+    recommendations: string;
+    nextSteps: string;
+    generatedDate: string;
+    medicalNote: MedicalNoteCreateDto;
 }
 
 export interface PatientInfoWithClinicalDto {
