@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+	<PackageReference Include="BCrypt.Net-Next" Version="4.0.2" />
+	<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MedBotAssist.Interfaces\MedBotAssist.Interfaces.csproj" />
+    <ProjectReference Include="..\MedBotAssist.Models\MedBotAssist.Models.csproj" />
+    <ProjectReference Include="..\MedBotAssist.Persistance\MedBotAssist.Persistance.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Services\ClinicalSummaryService\" />
+    <Folder Include="Services\OrchestrationService\" />
+  </ItemGroup>
+
+</Project>
