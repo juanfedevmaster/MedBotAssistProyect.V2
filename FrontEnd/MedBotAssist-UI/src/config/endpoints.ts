@@ -12,6 +12,8 @@ export const API_ENDPOINTS = {
   PATIENTS_UPDATE: (id: string | number) => `${API_BASE_URL}${process.env.REACT_APP_PATIENTS_UPDATE_ENDPOINT || '/api/Patient/update'}/${id}`,
   // Appointment endpoints
   APPOINTMENTS_GET_BY_DOCTOR: (doctorId: string | number) => `${API_BASE_URL}${process.env.REACT_APP_APPOINTMENTS_GET_BY_DOCTOR_ENDPOINT || '/api/Appointment/getByDoctor'}/${doctorId}`,
+  // Medical Note endpoints
+  MEDICAL_NOTE_CREATE: `${API_BASE_URL}${process.env.REACT_APP_MEDICAL_NOTE_CREATE_ENDPOINT || '/api/MedicalNote/CreateMedicalNote'}`,
   // AI Chat endpoints
   AI_CHAT: `${AI_API_BASE_URL}${process.env.REACT_APP_AI_CHAT_ENDPOINT || '/api/v1/agent/chat'}`
 };

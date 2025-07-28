@@ -11,6 +11,7 @@ using MedBotAssist.WebApi.Services.PatientService;
 using MedBotAssist.WebApi.Services.AppointmentService;
 using MedBotAssist.WebApi.Services.DoctorService;
 using MedBotAssist.WebApi.Services.OrchestrationService;
+using MedBotAssist.WebApi.Services.MedicalNoteService;
 
 namespace MedBotAssist.WebApi
 {
@@ -35,7 +36,8 @@ namespace MedBotAssist.WebApi
             builder.Services.AddScoped<IAppointmentService, AppointmentService>();
             builder.Services.AddScoped<IDoctorService, DoctorService>();
             builder.Services.AddScoped<IAuthOrchestrationService, AuthOrchestrationService>();
-            
+            builder.Services.AddScoped<IMedicalNoteService, MedicalNoteService>();
+
             // JWT Authentication configuration
             var jwtKey = builder.Configuration["JwtSettings:Secret"]; // Use a secure key in production
             var jwtIssuer = builder.Configuration["JwtSettings:Issuer"];
