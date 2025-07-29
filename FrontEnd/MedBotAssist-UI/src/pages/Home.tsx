@@ -85,7 +85,7 @@ const Home: React.FC<HomeProps> = ({ doctorId, username }) => {
     setCurrentWeekStart(newWeekStart);
   };
 
-  const handleAttendAppointment = (appointmentId: string) => {
+  const handleAttendAppointment = (appointmentId: number) => {
     // TODO: Implementar navegación a página de atender
     console.log('Atender cita:', appointmentId);
   };

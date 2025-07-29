@@ -339,12 +339,6 @@ const Patients: React.FC<PatientsProps> = ({ doctorId, username }) => {
                               >
                                 <i className="bi bi-pencil"></i>
                               </button>
-                              <button 
-                                className="btn btn-outline-danger"
-                                title="Delete Patient"
-                              >
-                                <i className="bi bi-trash"></i>
-                              </button>
                             </div>
                           </td>
                         </tr>

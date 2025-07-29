@@ -47,7 +47,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="d-flex justify-content-center align-items-center vh-100" style={{ background: 'linear-gradient(180deg, #ffffff, #405de6)' }}>
+    <div 
+      className="min-vh-100 d-flex align-items-center py-4" 
+      style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
+    >
       {loading && (
         <div
           style={{
@@ -64,47 +67,119 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           }}
         >
           <div className="spinner-border text-primary" role="status" style={{ width: '4rem', height: '4rem' }}>
-            <span className="visually-hidden">Cargando...</span>
+            <span className="visually-hidden">Loading...</span>
           </div>
         </div>
       )}
-      <div className="bg-white p-4 rounded shadow" style={{ width: '100%', maxWidth: '400px' }}>
-        <h2 className="text-center mb-4">LOGIN</h2>
-        <form onSubmit={handleLogin}>
-          <div className="mb-3">
-            <label htmlFor="username" className="form-label">Username</label>
-            <input
-              type="text"
-              className="form-control"
-              id="username"
-              value={userName}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Correo electrónico"
-              required
-            />
+      <div className="container">
+        <div className="row justify-content-center">
+          <div className="col-12 col-md-8 col-lg-6 col-xl-5">
+            <div className="card shadow-lg border-0" style={{ borderRadius: '15px' }}>
+              <div className="card-header text-center py-4" style={{ 
+                background: 'linear-gradient(135deg, #405de6 0%, #5a67d8 100%)', 
+                color: 'white',
+                borderRadius: '15px 15px 0 0'
+              }}>
+                <div className="mb-2">
+                  <i className="bi bi-shield-lock-fill" style={{ fontSize: '2.5rem' }}></i>
+                </div>
+                <h2 className="mb-0 fw-bold">Sign In</h2>
+              </div>
+              
+              <div className="card-body p-4">
+                {error && (
+                  <div className="alert alert-danger d-flex align-items-center mb-4" role="alert">
+                    <i className="bi bi-exclamation-triangle me-2"></i>
+                    {error}
+                  </div>
+                )}
+
+                <form onSubmit={handleLogin}>
+                  <div className="mb-3">
+                    <label htmlFor="username" className="form-label fw-semibold">
+                      <i className="bi bi-person me-1"></i>
+                      Username <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control form-control-lg"
+                      id="username"
+                      value={userName}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="Enter your username"
+                      required
+                      style={{ borderRadius: '10px' }}
+                    />
+                  </div>
+                  
+                  <div className="mb-3">
+                    <label htmlFor="password" className="form-label fw-semibold">
+                      <i className="bi bi-lock me-1"></i>
+                      Password <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      className="form-control form-control-lg"
+                      id="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      required
+                      style={{ borderRadius: '10px' }}
+                    />
+                  </div>
+                  
+                  <div className="form-check mb-4">
+                    <input type="checkbox" className="form-check-input" id="rememberMe" />
+                    <label className="form-check-label text-muted" htmlFor="rememberMe">
+                      Remember me
+                    </label>
+                  </div>
+                  
+                  <div className="d-grid gap-2 mb-3">
+                    <button 
+                      type="submit" 
+                      className="btn btn-lg fw-bold"
+                      disabled={loading}
+                      style={{
+                        background: 'linear-gradient(135deg, #405de6 0%, #5a67d8 100%)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '10px',
+                        padding: '15px'
+                      }}
+                    >
+                      {loading ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Signing In...
+                        </>
+                      ) : (
+                        <>
+                          <i className="bi bi-box-arrow-in-right me-2"></i>
+                          Sign In
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="text-center">
+                    <p className="mb-0 text-muted">
+                      Don't have an account?{' '}
+                      <Link
+                        to="/register"
+                        className="fw-semibold"
+                        style={{ color: '#405de6', textDecoration: 'none' }}
+                      >
+                        Register
+                      </Link>
+                    </p>
+                  </div>
+                </form>
+              </div>
+            </div>
           </div>
-          <div className="mb-3">
-            <label htmlFor="password" className="form-label">Contraseña</label>
-            <input
-              type="password"
-              className="form-control"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-            />
-          </div>
-          <div className="form-check mb-3">
-            <input type="checkbox" className="form-check-input" id="rememberMe" />
-            <label className="form-check-label" htmlFor="rememberMe">Recordarme</label>
-          </div>
-          <button type="submit" className="btn btn-primary w-100">Iniciar sesión</button>
-          {error && <div className="alert alert-danger mt-3">{error}</div>}
-        </form>
-        <p className="text-center mt-3">
-          ¿No tienes cuenta? <Link to="/register">Regístrate</Link>
-        </p>
+        </div>
       </div>
     </div>
   );

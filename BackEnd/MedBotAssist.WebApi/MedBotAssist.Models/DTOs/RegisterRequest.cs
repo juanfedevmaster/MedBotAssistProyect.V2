@@ -13,7 +13,8 @@ namespace MedBotAssist.Models.DTOs
         public string UserName { get; set; }
         public string Password { get; set; }
         public int? RoleId { get; set; } = 2; // Default to User role
-
+        public int? SpecialtyId { get; set; }
+        public string? MedicalLicenseNumber { get; set; }
 
         public RegisterRequest() { }
     }

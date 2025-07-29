@@ -94,6 +94,30 @@ export class ApiService {
     });
   }
 
+  static async getAppointmentsByDoctor(doctorId: string | number) {
+    return this.authenticatedFetch(API_ENDPOINTS.APPOINTMENTS_GET_BY_DOCTOR(doctorId));
+  }
+
+  static async createAppointment(appointmentData: any) {
+    return this.authenticatedFetch(API_ENDPOINTS.APPOINTMENTS_CREATE, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(appointmentData),
+    });
+  }
+
+  static async updateAppointment(appointmentId: string | number, appointmentData: any) {
+    return this.authenticatedFetch(API_ENDPOINTS.APPOINTMENTS_UPDATE(appointmentId), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(appointmentData),
+    });
+  }
+
   // Método para verificar si el token sigue siendo válido
   static async validateToken(): Promise<boolean> {
     if (!TokenManager.isAuthenticated()) return false;

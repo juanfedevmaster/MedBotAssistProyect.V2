@@ -64,7 +64,7 @@ namespace MedBotAssist.WebApi.Services.AuthService
         /// </returns>
         public async Task<string> RegisterAsync(RegisterRequest request)
         {
-            var role = await _context.Roles.FirstOrDefaultAsync(r => r.RoleId == 2);
+            var role = await _context.Roles.FirstOrDefaultAsync(r => r.RoleId == 1);
 
             var user = new User
             {
@@ -86,6 +86,16 @@ namespace MedBotAssist.WebApi.Services.AuthService
 
             _context.UserRoles.Add(userRole);
 
+            await _context.SaveChangesAsync();
+
+            var doctor = new Doctor()
+            {
+                DoctorId = 0,
+                UserId = user.UserId,
+                SpecialtyId = request.SpecialtyId,
+                MedicalLicenseNumber = request.MedicalLicenseNumber
+            };
+            _context.Doctors.Add(doctor);
             await _context.SaveChangesAsync();
 
             return "User successfully registered and role assigned.";
