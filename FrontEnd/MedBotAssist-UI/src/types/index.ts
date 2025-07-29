@@ -91,14 +91,14 @@ export interface PatientInfoWithClinicalDto {
 }
 
 export interface Appointment {
-    appointmentId: string;
-    patientId: string;
-    patientName: string;
+    appointmentId: number;
+    patientId: number;
+    doctorId: number;
     appointmentDate: string;
     appointmentTime: string;
-    reason: string;
     status: string;
     notes: string;
+    patientName?: string; // Propiedad opcional para compatibilidad
 }
 
 export interface DoctorInfo {
