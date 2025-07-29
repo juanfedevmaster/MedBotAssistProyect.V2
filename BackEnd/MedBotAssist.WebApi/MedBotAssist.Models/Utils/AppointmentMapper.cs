@@ -15,7 +15,8 @@ namespace MedBotAssist.Models.Utils
                 AppointmentDate = appointment.AppointmentDate,
                 AppointmentTime = appointment.AppointmentTime,
                 Status = appointment.Status,
-                Notes = appointment.Notes
+                Notes = appointment.Notes,
+                PatientName = appointment.Patient.FullName
             };
         }
 

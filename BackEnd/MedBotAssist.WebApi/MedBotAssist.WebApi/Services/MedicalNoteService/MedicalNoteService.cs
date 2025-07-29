@@ -10,7 +10,7 @@ namespace MedBotAssist.WebApi.Services.MedicalNoteService
         private readonly IMedBotAssistDbContext _context;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="DoctorService"/> class.
+        /// Initializes a new instance of the <see cref="MedicalNoteService"/> class.
         /// </summary>
         /// <param name="context">The database context.</param>
         public MedicalNoteService(IMedBotAssistDbContext context)

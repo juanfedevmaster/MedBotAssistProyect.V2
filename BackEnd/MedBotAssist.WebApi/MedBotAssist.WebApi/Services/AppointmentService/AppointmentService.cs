@@ -31,7 +31,15 @@ namespace MedBotAssist.WebApi.Services.AppointmentService
         {
             _context.Appointments.Add(appointment);
             await _context.SaveChangesAsync();
-            return appointment;
+
+            var createdAppointment = await GetByIdAsync(appointment.AppointmentId);
+
+            if (createdAppointment == null)
+            {
+                throw new InvalidOperationException("Failed to retrieve the created appointment.");
+            }
+
+            return createdAppointment;
         }
 
         /// <summary>
@@ -66,7 +74,10 @@ namespace MedBotAssist.WebApi.Services.AppointmentService
         /// <returns>The updated <see cref="Appointment"/> if found; otherwise, null.</returns>
         public async Task<Appointment?> UpdateAsync(Appointment appointment)
         {
-            var existing = await _context.Appointments.FindAsync(appointment.AppointmentId);
+            var existing = await _context.Appointments
+                .Include(a => a.Patient)
+                .FirstOrDefaultAsync(a => a.AppointmentId == appointment.AppointmentId);
+
             if (existing == null)
                 return null;
 
@@ -76,8 +87,9 @@ namespace MedBotAssist.WebApi.Services.AppointmentService
             existing.AppointmentTime = appointment.AppointmentTime;
             existing.Status = appointment.Status;
             existing.Notes = appointment.Notes;
-
+            
             await _context.SaveChangesAsync();
+            
             return existing;
         }
 
