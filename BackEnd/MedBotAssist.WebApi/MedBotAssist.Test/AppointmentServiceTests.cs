@@ -1,18 +1,9 @@
-using Xunit;
-using Moq;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using System.Linq;
 using MedBotAssist.Interfaces;
 using MedBotAssist.Models.Models;
+using MedBotAssist.Persistance.Context;
 using MedBotAssist.WebApi.Services.AppointmentService;
 using Microsoft.EntityFrameworkCore;
-using System.Threading;
-using System;
-using System.Linq.Expressions;
-using MedBotAssist.Persistance.Context;
-using Microsoft.EntityFrameworkCore;
-using Moq.Protected;
+using Moq;
 
 
 namespace MedBotAssist.Test
@@ -87,13 +78,18 @@ namespace MedBotAssist.Test
         [Fact]
         public async Task CreateAsync_AddsAppointment()
         {
+            var options = new DbContextOptionsBuilder<MedBotAssistDbContext>()
+                .UseInMemoryDatabase(databaseName: "TestDb_CreateAsync")
+                .Options;
+
+            using var context = new MedBotAssistDbContext(options);
+            var service = new AppointmentService(context);
+
             var newAppointment = new Appointment { AppointmentId = 3, DoctorId = 1, PatientId = 3, AppointmentDate = new DateOnly(2024, 2, 1), Status = "Scheduled" };
-            _mockSet.Setup(m => m.Add(It.IsAny<Appointment>())).Callback<Appointment>(a => _appointments.Add(a));
-            _mockContext.Setup(m => m.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
-            var result = await _service.CreateAsync(newAppointment);
+            var result = await service.CreateAsync(newAppointment);
 
-            Assert.Contains(_appointments, a => a.AppointmentId == 3);
+            Assert.NotNull(await context.Appointments.FindAsync(3));
             Assert.Equal(newAppointment, result);
         }
 
@@ -114,12 +110,21 @@ namespace MedBotAssist.Test
         [Fact]
         public async Task UpdateAsync_UpdatesAppointment()
         {
-            var updated = new Appointment { AppointmentId = 1, DoctorId = 1, PatientId = 1, AppointmentDate = new DateOnly(2024, 1, 10), Status = "Rescheduled" };
-            _mockSet.Setup(m => m.FindAsync(It.IsAny<object[]>()))
-                .ReturnsAsync((object[] ids) => _appointments.FirstOrDefault(a => a.AppointmentId == (int)ids[0]));
-            _mockContext.Setup(m => m.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            var options = new DbContextOptionsBuilder<MedBotAssistDbContext>()
+                .UseInMemoryDatabase(databaseName: "TestDb_UpdateAsync")
+                .Options;
 
-            var result = await _service.UpdateAsync(updated);
+            using var context = new MedBotAssistDbContext(options);
+            // Agrega la cita original
+            context.Appointments.Add(new Appointment { AppointmentId = 1, DoctorId = 1, PatientId = 1, AppointmentDate = new DateOnly(2024, 1, 1), Status = "Scheduled" });
+            context.SaveChanges();
+
+            var service = new AppointmentService(context);
+
+            // Crea el objeto actualizado
+            var updated = new Appointment { AppointmentId = 1, DoctorId = 1, PatientId = 1, AppointmentDate = new DateOnly(2024, 1, 10), Status = "Rescheduled" };
+
+            var result = await service.UpdateAsync(updated);
 
             Assert.NotNull(result);
             Assert.Equal("Rescheduled", result?.Status);

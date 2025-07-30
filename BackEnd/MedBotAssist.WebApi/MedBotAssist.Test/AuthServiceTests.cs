@@ -78,8 +78,13 @@ namespace MedBotAssist.Test
                 .Options;
 
             using var context = new MedBotAssistDbContext(options);
-            context.Roles.Add(new Role { RoleId = 2, RoleName = "User" });
+            context.Roles.Add(new Role { RoleId = 1, RoleName = "User" });
             context.SaveChanges();
+
+            var role = await context.Roles.FirstOrDefaultAsync(r => r.RoleName.Equals("User"));
+            if (role == null)
+                throw new InvalidOperationException("Role 'User' not found.");
+            
 
             var mockConfig = new Mock<IConfiguration>();
 
@@ -92,8 +97,8 @@ namespace MedBotAssist.Test
 
             // Assert
             Assert.Equal("User successfully registered and role assigned.", result);
-            Assert.Single(context.Users.Where(u => u.UserName == "newuser"));
-            Assert.Single(context.UserRoles.Where(ur => ur.RoleId == 2));
+            Assert.Single(context.Users.Where(u => u.UserName.Equals("newuser")));
+            Assert.Single(context.UserRoles.Where(ur => ur.RoleId == 1));
         }
     }
 }
