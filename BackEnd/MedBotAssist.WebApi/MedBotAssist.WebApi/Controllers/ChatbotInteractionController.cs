@@ -67,5 +67,11 @@ namespace MedBotAssist.WebApi.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
         }
+
+        [HttpGet("getHistory-test")]
+        public async Task<IActionResult> GetChatBotHistory()
+        {
+            return Ok("DeployOK");
+        }
     }
 }
