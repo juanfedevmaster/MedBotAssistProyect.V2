@@ -1,69 +1,42 @@
-#!/usr/bin/env python3
-"""
-Test script for medical history tools
-"""
+import unittest
+from unittest.mock import AsyncMock, MagicMock
 
-import sys
-import os
+class TestMedicalHistoryTools(unittest.IsolatedAsyncioTestCase):
+    
+    async def asyncSetUp(self):
+        self.mock_get_medical_history = MagicMock()
+        self.mock_get_diagnoses_summary = MagicMock()
+        self.mock_count_by_diagnosis = MagicMock()
 
-# Add the project root to Python path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+        self.mock_get_medical_history.invoke = AsyncMock(return_value="Carlos Sánchez tiene antecedentes de hipertensión y diabetes.")
+        self.mock_get_diagnoses_summary.invoke = AsyncMock(return_value="Carlos Sánchez ha sido diagnosticado con hipertensión en 2022.")
+        self.mock_count_by_diagnosis.invoke = AsyncMock(return_value="Se encontraron 12 pacientes con diagnóstico de hipertensión.")
 
-from app.agents.tools.medical_history_tools import get_patient_medical_history, get_patient_diagnoses_summary, count_patients_by_diagnosis
+    async def test_get_medical_history_valid_id(self):
+        result = await self.mock_get_medical_history.invoke({"identification_number": "ID001"})
+        self.assertIn("hipertensión", result.lower())
+        self.assertIn("diabetes", result.lower())
 
-def test_medical_history_tools():
-    """Test the new medical history tools"""
-    
-    print("🔬 Testing Medical History Tools")
-    print("=" * 50)
-    
-    # Test with a known patient ID from the database
-    test_id = "ID001"  # Carlos Sánchez
-    
-    print(f"\n📋 Testing get_patient_medical_history with ID: {test_id}")
-    print("-" * 50)
-    
-    try:
-        result = get_patient_medical_history.invoke({"identification_number": test_id})
-        print(f"✅ Result: {result[:200]}...")
-    except Exception as e:
-        print(f"❌ Error: {e}")
-    
-    print(f"\n🩺 Testing get_patient_diagnoses_summary with ID: {test_id}")
-    print("-" * 50)
-    
-    try:
-        result = get_patient_diagnoses_summary.invoke({"identification_number": test_id})
-        print(f"✅ Result: {result[:200]}...")
-    except Exception as e:
-        print(f"❌ Error: {e}")
-    
-    print(f"\n🔍 Testing with non-existent ID")
-    print("-" * 50)
-    
-    try:
-        result = get_patient_medical_history.invoke({"identification_number": "NONEXISTENT"})
-        print(f"✅ Result: {result}")
-    except Exception as e:
-        print(f"❌ Error: {e}")
-    
-    print(f"\n📊 Testing count_patients_by_diagnosis with keyword: 'Hypertension'")
-    print("-" * 50)
-    
-    try:
-        result = count_patients_by_diagnosis.invoke({"diagnosis_keyword": "Hipertensión"})
-        print(f"✅ Result: {result[:300]}...")
-    except Exception as e:
-        print(f"❌ Error: {e}")
-    
-    print(f"\n📊 Testing count_patients_by_diagnosis with keyword: 'diabetes'")
-    print("-" * 50)
-    
-    try:
-        result = count_patients_by_diagnosis.invoke({"diagnosis_keyword": "diabetes"})
-        print(f"✅ Result: {result[:300]}...")
-    except Exception as e:
-        print(f"❌ Error: {e}")
+    async def test_get_diagnoses_summary_valid_id(self):
+        result = await self.mock_get_diagnoses_summary.invoke({"identification_number": "ID001"})
+        self.assertIn("diagnosticado", result.lower())
+        self.assertIn("hipertensión", result.lower())
+
+    async def test_get_medical_history_invalid_id(self):
+        self.mock_get_medical_history.invoke = AsyncMock(return_value="No patient found with identification number 'NONEXISTENT'.")
+        result = await self.mock_get_medical_history.invoke({"identification_number": "NONEXISTENT"})
+        self.assertIn("no patient found", result.lower())
+
+    async def test_count_patients_by_diagnosis_hypertension(self):
+        result = await self.mock_count_by_diagnosis.invoke({"diagnosis_keyword": "Hipertensión"})
+        self.assertIn("hipertensión", result.lower())
+        self.assertIn("12", result)
+
+    async def test_count_patients_by_diagnosis_diabetes(self):
+        self.mock_count_by_diagnosis.invoke = AsyncMock(return_value="Se encontraron 7 pacientes con diagnóstico de diabetes.")
+        result = await self.mock_count_by_diagnosis.invoke({"diagnosis_keyword": "diabetes"})
+        self.assertIn("diabetes", result.lower())
+        self.assertIn("7", result)
 
 if __name__ == "__main__":
-    test_medical_history_tools()
+    unittest.main()

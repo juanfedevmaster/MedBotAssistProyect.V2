@@ -26,6 +26,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Run Unit Tests
+        run: |
+          echo "Running Python Unit Tests..."
+          python -m unittest discover -s . -p "test_*.py"
+
       - name: Ensure startup.sh is executable
         run: chmod +x BackEnd/MedBotAssist.BotOpenIA/startup.sh
       
