@@ -34,9 +34,6 @@ jobs:
           cd BackEnd/MedBotAssist.BotOpenIA
           zip -r ../../../medbotopenia.zip *
 
-      - name: List ZIP contents
-        run: unzip -l medbotopenia.zip
-
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
