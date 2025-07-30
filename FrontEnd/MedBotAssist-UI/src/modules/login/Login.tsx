@@ -118,6 +118,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="Enter your username"
                       required
+                      autoComplete="off"
                       style={{ borderRadius: '10px' }}
                     />
                   </div>
@@ -135,6 +136,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter your password"
                       required
+                      autoComplete="off"
                       style={{ borderRadius: '10px' }}
                     />
                   </div>

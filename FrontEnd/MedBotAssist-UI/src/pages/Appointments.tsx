@@ -330,6 +330,43 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
       return;
     }
 
+    // Check if doctor already has an appointment at the same date and time
+    console.log('Checking for conflicts:');
+    console.log('New appointment date:', selectedDateForNewAppointment);
+    console.log('New appointment time:', newAppointment.appointmentTime);
+    console.log('Existing appointments:', appointments.map(apt => ({
+      id: apt.appointmentId,
+      date: apt.appointmentDate,
+      time: apt.appointmentTime,
+      status: apt.status,
+      patient: apt.patientName
+    })));
+
+    const conflictingAppointment = appointments.find(appointment => {
+      const isSameDate = appointment.appointmentDate === selectedDateForNewAppointment;
+      const isSameTime = appointment.appointmentTime === newAppointment.appointmentTime;
+      const isNotCancelled = appointment.status.toLowerCase() !== 'cancelled';
+      
+      console.log(`Checking appointment ${appointment.appointmentId}:`, {
+        isSameDate,
+        isSameTime,
+        isNotCancelled,
+        appointmentDate: appointment.appointmentDate,
+        appointmentTime: appointment.appointmentTime,
+        status: appointment.status
+      });
+      
+      return isSameDate && isSameTime && isNotCancelled;
+    });
+
+    if (conflictingAppointment) {
+      console.log('Conflict found:', conflictingAppointment);
+      setError(`Doctor already has an appointment scheduled at ${newAppointment.appointmentTime} on ${selectedDateForNewAppointment} with ${conflictingAppointment.patientName}. Please choose a different time.`);
+      return;
+    }
+
+    console.log('No conflicts found, proceeding with appointment creation');
+
     try {
       setCreatingAppointment(true);
       setError('');
@@ -357,6 +394,15 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
         
         handleCloseCreateModal();
         console.log('Appointment created successfully');
+      } else if (response.status === 409) {
+        // Handle conflict - appointment already exists at this time
+        const errorData = await response.json();
+        const conflictMessage = errorData.conflictingAppointment 
+          ? `Doctor already has an appointment scheduled at ${errorData.conflictingAppointment.appointmentTime} on ${errorData.conflictingAppointment.appointmentDate} with ${errorData.conflictingAppointment.patientName}. Please choose a different time.`
+          : 'Doctor already has an appointment scheduled at this time. Please choose a different time.';
+        
+        setError(conflictMessage);
+        console.log('Appointment conflict detected:', errorData);
       } else {
         const errorText = await response.text();
         console.error('API Error Response:', errorText);
@@ -487,6 +533,39 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
       return;
     }
 
+    // Check if doctor already has an appointment at the same date and time (excluding the current one being edited)
+    console.log('Checking for conflicts during edit:');
+    console.log('Edit appointment date:', editAppointmentData.appointmentDate);
+    console.log('Edit appointment time:', editAppointmentData.appointmentTime);
+    console.log('Current appointment ID being edited:', appointmentToEdit.appointmentId);
+
+    const conflictingAppointment = appointments.find(appointment => {
+      const isSameDate = appointment.appointmentDate === editAppointmentData.appointmentDate;
+      const isSameTime = appointment.appointmentTime === editAppointmentData.appointmentTime;
+      const isDifferentAppointment = appointment.appointmentId !== appointmentToEdit.appointmentId;
+      const isNotCancelled = appointment.status.toLowerCase() !== 'cancelled';
+      
+      console.log(`Checking appointment ${appointment.appointmentId} during edit:`, {
+        isSameDate,
+        isSameTime,
+        isDifferentAppointment,
+        isNotCancelled,
+        appointmentDate: appointment.appointmentDate,
+        appointmentTime: appointment.appointmentTime,
+        status: appointment.status
+      });
+      
+      return isSameDate && isSameTime && isDifferentAppointment && isNotCancelled;
+    });
+
+    if (conflictingAppointment) {
+      console.log('Conflict found during edit:', conflictingAppointment);
+      setError(`Doctor already has an appointment scheduled at ${editAppointmentData.appointmentTime} on ${editAppointmentData.appointmentDate} with ${conflictingAppointment.patientName}. Please choose a different time.`);
+      return;
+    }
+
+    console.log('No conflicts found during edit, proceeding with update');
+
     try {
       setUpdatingAppointment(true);
       setError('');
@@ -528,6 +607,15 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
 
           handleCloseEditModal();
           console.log('Appointment updated successfully via API');
+        } else if (response.status === 409) {
+          // Handle conflict - appointment already exists at this time
+          const errorData = await response.json();
+          const conflictMessage = errorData.conflictingAppointment 
+            ? `Doctor already has an appointment scheduled at ${errorData.conflictingAppointment.appointmentTime} on ${errorData.conflictingAppointment.appointmentDate} with ${errorData.conflictingAppointment.patientName}. Please choose a different time.`
+            : 'Doctor already has an appointment scheduled at this time. Please choose a different time.';
+          
+          setError(conflictMessage);
+          console.log('Appointment update conflict detected:', errorData);
         } else {
           const errorText = await response.text();
           console.error('API Error Response:', errorText);
@@ -652,7 +740,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
             </div>
             <button 
               className="btn btn-outline-light" 
-              onClick={() => window.location.reload()}
+              onClick={() => setError('')}
             >
               <i className="bi bi-arrow-clockwise me-2"></i>
               Try Again
@@ -882,6 +970,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                         placeholder="Search by patient name, ID, appointment ID, or notes..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
+                        autoComplete="off"
                       />
                     </div>
                   </div>
@@ -969,13 +1058,59 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                               </td>
                               <td>
                                 {(() => {
-                                  const appointmentDate = new Date(appointment.appointmentDate);
+                                  // Debug the raw data first
+                                  console.log('Raw appointment data:', {
+                                    appointmentId: appointment.appointmentId,
+                                    rawDate: appointment.appointmentDate,
+                                    dateType: typeof appointment.appointmentDate,
+                                    status: appointment.status,
+                                    statusType: typeof appointment.status
+                                  });
+
+                                  // Parse appointment date more carefully
+                                  let appointmentDate;
+                                  try {
+                                    // Try different parsing methods
+                                    if (typeof appointment.appointmentDate === 'string') {
+                                      // If it's already in YYYY-MM-DD format, add time
+                                      if (appointment.appointmentDate.includes('-') && appointment.appointmentDate.length === 10) {
+                                        appointmentDate = new Date(appointment.appointmentDate + 'T00:00:00');
+                                      } else {
+                                        appointmentDate = new Date(appointment.appointmentDate);
+                                      }
+                                    } else {
+                                      appointmentDate = new Date(appointment.appointmentDate);
+                                    }
+                                  } catch (error) {
+                                    console.error('Error parsing appointment date:', error);
+                                    appointmentDate = new Date(); // fallback to today
+                                  }
+
+                                  // Get today's date
                                   const today = new Date();
-                                  today.setHours(0, 0, 0, 0); // Resetear horas para comparar solo fecha
-                                  appointmentDate.setHours(0, 0, 0, 0); // Resetear horas para comparar solo fecha
                                   
-                                  // Only show attend button if appointment is confirmed and is today or in the future
-                                  if (appointment.status.toLowerCase() === 'confirmed' && appointmentDate >= today) {
+                                  // Normalize both dates to compare only the date part (not time)
+                                  const appointmentDateOnly = new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), appointmentDate.getDate());
+                                  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                                  
+                                  console.log('Date comparison debug:', {
+                                    appointmentId: appointment.appointmentId,
+                                    originalDate: appointment.appointmentDate,
+                                    parsedDate: appointmentDate.toString(),
+                                    appointmentDateOnly: appointmentDateOnly.toString(),
+                                    todayOnly: todayOnly.toString(),
+                                    appointmentTime: appointmentDateOnly.getTime(),
+                                    todayTime: todayOnly.getTime(),
+                                    isGreaterOrEqual: appointmentDateOnly.getTime() >= todayOnly.getTime(),
+                                    status: appointment.status,
+                                    statusLower: appointment.status.toLowerCase(),
+                                    isConfirmed: appointment.status.toLowerCase() === 'confirmed',
+                                    shouldShowButton: appointment.status.toLowerCase() === 'confirmed' && appointmentDateOnly.getTime() >= todayOnly.getTime()
+                                  });
+                                  
+                                  // Show attend button if appointment is confirmed and is TODAY or in the FUTURE
+                                  if (appointment.status.toLowerCase() === 'confirmed' && appointmentDateOnly.getTime() >= todayOnly.getTime()) {
+                                    console.log('SHOWING ATTEND BUTTON for appointment:', appointment.appointmentId);
                                     return (
                                       <button 
                                         className="btn btn-sm btn-primary"
@@ -987,11 +1122,23 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                                       </button>
                                     );
                                   }
-                                  return (
-                                    <span className="text-muted small">
-                                      {appointment.status.toLowerCase() !== 'confirmed' ? 'Not confirmed' : 'Past appointment'}
-                                    </span>
-                                  );
+                                  
+                                  // Show appropriate message based on status and date
+                                  if (appointment.status.toLowerCase() !== 'confirmed') {
+                                    console.log('NOT CONFIRMED for appointment:', appointment.appointmentId);
+                                    return (
+                                      <span className="text-muted small">
+                                        Not confirmed
+                                      </span>
+                                    );
+                                  } else {
+                                    console.log('PAST APPOINTMENT for appointment:', appointment.appointmentId);
+                                    return (
+                                      <span className="text-muted small">
+                                        Past appointment
+                                      </span>
+                                    );
+                                  }
                                 })()}
                               </td>
                               <td>
@@ -1093,6 +1240,11 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                           return appointmentDate.getDate() === dayDate.getDate() &&
                                  appointmentDate.getMonth() === dayDate.getMonth() &&
                                  appointmentDate.getFullYear() === dayDate.getFullYear();
+                        }).sort((a, b) => {
+                          // Sort appointments chronologically by time (earliest first)
+                          const timeA = a.appointmentTime || '00:00';
+                          const timeB = b.appointmentTime || '00:00';
+                          return timeA.localeCompare(timeB);
                         });
 
                         return (
@@ -1520,6 +1672,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                       onChange={(e) => setEditAppointmentData(prev => ({ ...prev, appointmentDate: e.target.value }))}
                       min={getCurrentLocalDate()}
                       required
+                      autoComplete="off"
                     />
                   </div>
                   <div className="col-md-6 mb-3">
@@ -1533,6 +1686,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                       value={editAppointmentData.appointmentTime}
                       onChange={(e) => setEditAppointmentData(prev => ({ ...prev, appointmentTime: e.target.value }))}
                       required
+                      autoComplete="off"
                     />
                   </div>
                 </div>
@@ -1667,6 +1821,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                       value={selectedDateForNewAppointment}
                       onChange={(e) => setSelectedDateForNewAppointment(e.target.value)}
                       min={getCurrentLocalDate()}
+                      autoComplete="off"
                     />
                   </div>
                   <div className="col-md-6 mb-3">
@@ -1677,6 +1832,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                       value={newAppointment.appointmentTime}
                       onChange={(e) => setNewAppointment(prev => ({ ...prev, appointmentTime: e.target.value }))}
                       required
+                      autoComplete="off"
                     />
                   </div>
                 </div>

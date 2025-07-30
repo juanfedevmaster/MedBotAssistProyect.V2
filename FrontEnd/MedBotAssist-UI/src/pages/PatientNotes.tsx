@@ -71,16 +71,27 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
       let historyText = '';
       if (patientData.clinicalSummaries && patientData.clinicalSummaries.length > 0) {
         patientData.clinicalSummaries.forEach((summary: any) => {
-          historyText += `DIAGNOSIS: ${summary.diagnosis}\n`;
-          historyText += `TREATMENT: ${summary.treatment}\n`;
-          historyText += `RECOMMENDATIONS: ${summary.recommendations}\n`;
-          historyText += `NEXT STEPS: ${summary.nextSteps}\n`;
-          
+          if (summary.diagnosis !== null && summary.diagnosis !== '') {
+            historyText += `DIAGNOSIS: ${summary.diagnosis}\n`;
+          }
+          if (summary.treatment !== null && summary.treatment !== '') {
+            historyText += `TREATMENT: ${summary.treatment}\n`;
+          }
+          if (summary.recommendations !== null && summary.recommendations !== '') {
+            historyText += `RECOMMENDATIONS: ${summary.recommendations}\n`;
+          }
+          if (summary.nextSteps !== null && summary.nextSteps !== '') {
+            historyText += `NEXT STEPS: ${summary.nextSteps}\n`;
+          }
+
           if (summary.medicalNote) {
             const noteDate = new Date(summary.medicalNote.creationDate).toLocaleDateString();
             historyText += `\n- ${noteDate}\n${summary.medicalNote.freeText}\n\n`;
           }
-          historyText += '---\n\n';
+
+          if (historyText !== '') {
+            historyText += '---\n\n';
+          }
         });
       }
       setMedicalHistory(historyText);
@@ -374,6 +385,31 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
 
       {/* Contenido principal */}
       <div className="container-fluid mt-4 px-4">
+        {/* Check if patient has clinical summaries (appointments) */}
+        {!patient?.clinicalSummaries || patient.clinicalSummaries.length === 0 ? (
+          <div className="row justify-content-center">
+            <div className="col-md-8">
+              <div className="bg-white rounded shadow p-5 text-center" style={{ color: '#333' }}>
+                <i className="bi bi-exclamation-triangle-fill text-warning mb-3" style={{ fontSize: '3rem' }}></i>
+                <h3 className="mb-3" style={{ color: '#405de6' }}>No Appointments Assigned</h3>
+                <p className="lead text-muted mb-4">
+                  Cannot add medical notes until the patient has an assigned appointment.
+                </p>
+                <p className="text-muted mb-4">
+                  Please assign an appointment to this patient first, then return to add medical notes.
+                </p>
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => navigate('/appointments')}
+                  style={{ backgroundColor: '#405de6', borderColor: '#405de6' }}
+                >
+                  <i className="bi bi-calendar-plus me-2"></i>
+                  Go to Appointments
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="row">
           {/* Left panel - Patient information */}
           <div className="col-lg-3 col-md-4 mb-4">
@@ -678,6 +714,7 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
             </div>
           </div>
         </div>
+        )}
       </div>
 
       {/* Confirmation modal to improve note with AI */}

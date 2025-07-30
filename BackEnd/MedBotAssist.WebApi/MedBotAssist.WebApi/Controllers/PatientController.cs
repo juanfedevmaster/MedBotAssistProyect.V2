@@ -1,8 +1,9 @@
 using MedBotAssist.Interfaces;
 using MedBotAssist.Models.DTOs;
+using MedBotAssist.Models.Models;
 using MedBotAssist.Models.Utils;
 using MedBotAssist.WebApi.Services.AuthService;
-using MedBotAssist.WebApi.Services.ClinicalSummaryService;
+using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MedBotAssist.WebApi.Controllers
@@ -44,6 +45,15 @@ namespace MedBotAssist.WebApi.Controllers
                 return NotFound();
 
             var clinicalSummaries = await _clinicalSummaryService.GetByPatientIdAsync(patientId);
+
+            if (patient.Appointments.Count() > 0 && clinicalSummaries.ToList().Count == 0) {
+                var clinicalSummary = new ClinicalSummary();
+                var clinicalSummariesToList = clinicalSummaries.ToList();
+
+                clinicalSummariesToList.Add(clinicalSummary);
+
+                clinicalSummaries = clinicalSummariesToList;
+            }
 
             var dto = PatientMapper.ToDetailedInfoResponseDto(patient, clinicalSummaries);
             return Ok(dto);
