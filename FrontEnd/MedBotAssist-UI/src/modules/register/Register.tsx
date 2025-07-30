@@ -26,7 +26,7 @@ const Register: React.FC = () => {
     userName: '',
     password: '',
     confirmPassword: '',
-    roleId: 1, // Siempre será 1 como especifica el usuario
+    roleId: 1, // Always will be 1 as specified by the user
     specialtyId: 0,
     medicalLicenseNumber: '',
   });
@@ -46,7 +46,7 @@ const Register: React.FC = () => {
         if (response.ok) {
           const data = await response.json();
           // Asumir que la respuesta contiene las especialidades
-          // Si es un array directo, usarlo; si está en una propiedad, extraerlo
+          // If it's a direct array, use it; if it's in a property, extract it
           const specialtiesData = Array.isArray(data) ? data : data.specialties || [];
           setSpecialties(specialtiesData);
         } else {
@@ -119,7 +119,7 @@ const Register: React.FC = () => {
           email: form.email,
           userName: form.userName,
           password: form.password,
-          roleId: form.roleId, // Siempre será 1
+          roleId: form.roleId, // Always will be 1
           specialtyId: form.specialtyId,
           medicalLicenseNumber: form.medicalLicenseNumber,
         }),

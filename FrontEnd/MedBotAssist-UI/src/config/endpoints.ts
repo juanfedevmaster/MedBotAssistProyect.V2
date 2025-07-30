@@ -18,5 +18,7 @@ export const API_ENDPOINTS = {
   // Medical Note endpoints
   MEDICAL_NOTE_CREATE: `${API_BASE_URL}${process.env.REACT_APP_MEDICAL_NOTE_CREATE_ENDPOINT || '/api/MedicalNote/CreateMedicalNote'}`,
   // AI Chat endpoints
-  AI_CHAT: `${AI_API_BASE_URL}${process.env.REACT_APP_AI_CHAT_ENDPOINT || '/api/v1/agent/chat'}`
+  AI_CHAT: `${AI_API_BASE_URL}${process.env.REACT_APP_AI_CHAT_ENDPOINT || '/api/v1/agent/chat'}`,
+  // Chat History endpoint - usar API_BASE_URL no AI_API_BASE_URL
+  CHAT_HISTORY: `${API_BASE_URL}${process.env.REACT_APP_CHAT_HISTORY_ENDPOINT || '/api/ChatbotInteraction/getHistory'}`
 };

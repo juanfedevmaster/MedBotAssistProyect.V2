@@ -15,7 +15,7 @@ export const useAuth = () => {
   });
 
   useEffect(() => {
-    // Verificar si hay datos de autenticación almacenados
+    // Check if authentication data is stored
     const token = TokenManager.getToken();
     const doctorId = TokenManager.getDoctorId();
     
@@ -39,7 +39,7 @@ export const useAuth = () => {
   };
 
   const logout = () => {
-    TokenManager.clearAuthData();
+    TokenManager.clearSessionData(); // Usar clearSessionData en lugar de clearAuthData
     
     setAuthState({
       isAuthenticated: false,
@@ -60,12 +60,12 @@ export const useAuth = () => {
     return TokenManager.getUsername();
   };
 
-  // Función para obtener headers de autorización
+  // Function to get authorization headers
   const getAuthHeaders = (): HeadersInit => {
     return TokenManager.getAuthHeaders();
   };
 
-  // Función para hacer fetch con autorización automática
+  // Function to make fetch with automatic authorization
   const authorizedFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
     const headers = {
       ...getAuthHeaders(),
@@ -77,7 +77,7 @@ export const useAuth = () => {
       headers,
     });
 
-    // Si recibimos 401, el token probablemente expiró
+    // If we receive 401, the token probably expired
     if (response.status === 401) {
       logout();
       throw new Error('Session expired. Please login again.');

@@ -67,7 +67,7 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
       const patientData = await response.json();
       setPatient(patientData);
       
-      // Formatear historia clínica
+      // Format clinical history
       let historyText = '';
       if (patientData.clinicalSummaries && patientData.clinicalSummaries.length > 0) {
         patientData.clinicalSummaries.forEach((summary: any) => {
@@ -85,7 +85,7 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
       }
       setMedicalHistory(historyText);
       
-      // Poblar campos del clinical summary con la última entrada
+      // Populate clinical summary fields with the last entry
       if (patientData.clinicalSummaries && patientData.clinicalSummaries.length > 0) {
         const lastSummary = patientData.clinicalSummaries[patientData.clinicalSummaries.length - 1];
         setDiagnosis(lastSummary.diagnosis || '');
@@ -107,7 +107,7 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
   }, [loadPatientData]);
 
   const handleLogout = () => {
-    TokenManager.clearAuthData();
+    TokenManager.clearSessionData(); // Usar clearSessionData para mantener conversation_id
     navigate('/');
   };
 
@@ -136,7 +136,7 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
       return;
     }
 
-    // Mostrar modal de confirmación
+    // Show confirmation modal
     setShowSaveModal(true);
   };
 
@@ -147,7 +147,7 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
       setSaving(true);
       setError('');
       
-      // Preparar la nota médica
+      // Prepare medical note
       const medicalNote: MedicalNoteCreateDto = {
         noteId: 0,
         creationDate: new Date().toISOString(),
@@ -171,14 +171,14 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
       
       if (response.ok) {
         setSuccess('Clinical summary and medical note saved successfully!');
-        // Limpiar todos los campos después de guardar
+        // Clear all fields after saving
         setNotes('');
         setDiagnosis('');
         setTreatment('');
         setRecommendations('');
         setNextSteps('');
         
-        // Mostrar mensaje de éxito por 2 segundos y luego recargar los datos del paciente
+        // Show success message for 2 seconds and then reload patient data
         setTimeout(() => {
           setSuccess('');
           // Recargar los datos del paciente para mostrar la nueva nota en el historial
@@ -289,7 +289,7 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
           <span className="navbar-toggler-icon"></span>
         </button>
         <div className="collapse navbar-collapse" id="navbarMenu">
-          {/* Menu de navegación */}
+          {/* Navigation menu */}
           <ul className="navbar-nav me-auto">
             <li className="nav-item">
               <button
@@ -375,7 +375,7 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
       {/* Contenido principal */}
       <div className="container-fluid mt-4 px-4">
         <div className="row">
-          {/* Panel izquierdo - Información del paciente */}
+          {/* Left panel - Patient information */}
           <div className="col-lg-3 col-md-4 mb-4">
             <div className="bg-white rounded shadow p-4 h-100" style={{ color: '#333' }}>
               <h4 className="mb-3" style={{ color: '#405de6' }}>
@@ -429,7 +429,7 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
             </div>
           </div>
 
-          {/* Panel derecho - Historia clínica y notas */}
+          {/* Right panel - Clinical history and notes */}
           <div className="col-lg-9 col-md-8">
             <div className="bg-white rounded shadow p-4" style={{ color: '#333' }}>
               {/* Header */}
@@ -460,7 +460,7 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
                 </div>
               )}
 
-              {/* Historia clínica */}
+              {/* Clinical history */}
               <div className="mb-4">
                 <label className="form-label fw-bold">
                   <i className="bi bi-file-earmark-medical me-2"></i>
@@ -501,12 +501,12 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
                     style={{ 
                       minHeight: '150px',
                       resize: 'vertical',
-                      paddingBottom: '45px', // Espacio para el botón
+                      paddingBottom: '45px', // Space for the button
                       backgroundColor: aiLoading ? '#f8f9fa' : 'white',
                       cursor: aiLoading ? 'not-allowed' : 'text'
                     }}
                   />
-                  {/* Botón flotante de IA */}
+                  {/* AI floating button */}
                   <button
                     type="button"
                     className="btn btn-primary btn-sm position-absolute"
@@ -645,7 +645,7 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
                 </small>
               </div>
 
-              {/* Botón para guardar notas */}
+              {/* Button to save notes */}
               <div className="d-flex justify-content-end">
                 <button 
                   className="btn"
@@ -667,7 +667,7 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
                 </button>
               </div>
 
-              {/* Información del doctor */}
+              {/* Doctor information */}
               <div className="mt-4 p-3 bg-light rounded">
                 <small className="text-muted">
                   <i className="bi bi-info-circle me-1"></i>
@@ -680,7 +680,7 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
         </div>
       </div>
 
-      {/* Modal de confirmación para mejorar nota con IA */}
+      {/* Confirmation modal to improve note with AI */}
       {showAiModal && (
         <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog modal-dialog-centered">
@@ -729,7 +729,7 @@ const PatientNotes: React.FC<PatientNotesProps> = ({ doctorId, username }) => {
         </div>
       )}
 
-      {/* Modal de confirmación para guardar nota médica */}
+      {/* Confirmation modal to save medical note */}
       {showSaveModal && (
         <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog modal-dialog-centered">

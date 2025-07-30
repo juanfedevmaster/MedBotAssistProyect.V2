@@ -1,5 +1,6 @@
 ﻿using MedBotAssist.Interfaces;
 using MedBotAssist.Models.DTOs;
+using MedBotAssist.WebApi.Services.AuthService;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -36,6 +37,7 @@ namespace MedBotAssist.WebApi.Controllers
         /// or 500 Internal Server Error if creation fails.
         /// </returns>
         [HttpPost("CreateMedicalNote")]
+        [HasPermission("EditMedicalNotes")]
         public async Task<IActionResult> CreateMedicalNote([FromBody] ClinicalSummaryResponseDto clinicalSummaryResponseDto)
         {
             if (clinicalSummaryResponseDto == null)

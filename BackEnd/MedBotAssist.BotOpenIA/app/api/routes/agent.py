@@ -8,6 +8,7 @@ from app.models.schemas import (
 )
 from app.agents.medical_agent import MedicalQueryAgent
 from app.services.jwt_service import JWTService
+from app.services.chatbot_interaction_service import ChatbotInteractionService
 import time
 from typing import Dict, Any, Optional
 import uuid
@@ -21,6 +22,7 @@ security = HTTPBearer()
 # Global instances
 medical_agent = None
 jwt_service = JWTService()
+interaction_service = ChatbotInteractionService()
 
 def get_medical_agent() -> MedicalQueryAgent:
     """Dependency to get or create medical agent instance."""
@@ -81,10 +83,11 @@ async def chat_with_agent(
             
         token = authorization.split(" ")[1]
         
-        # Decode and validate JWT token
+        # 1. Decode and validate JWT token
         try:
             user_permissions = jwt_service.get_user_permissions(token)
             username = jwt_service.extract_username(token)
+            user_id = jwt_service.extract_user_id(token)
             
             logger.info(f"User '{username}' authenticated successfully with {len(user_permissions)} permissions")
             
@@ -96,11 +99,11 @@ async def chat_with_agent(
             )
         
         start_time = time.time()
-        
-        # Generate conversation ID if not provided
+
+        # 2. Generate conversation ID if not provided
         conversation_id = request.conversation_id or f"conv_{uuid.uuid4().hex[:8]}"
         
-        # Process query with agent - pass user permissions context
+        # 3. Process query with agent - pass user permissions context
         result = await agent.query(
             message=request.message,
             conversation_id=conversation_id,
@@ -109,7 +112,7 @@ async def chat_with_agent(
             jwt_token=token
         )
         
-        # Get available tools
+        # 4. Get available tools
         available_tools = [tool["name"] for tool in agent.get_available_tools()]
         
         response = AgentQueryResponse(
@@ -119,6 +122,22 @@ async def chat_with_agent(
             available_tools=available_tools,
             status=result.get("status", "success")
         )
+        
+        # 5. Save interaction to database
+        try:
+            interaction_id = interaction_service.save_interaction(
+                user_id=user_id,
+                user_message=request.message,
+                bot_response=result["response"],
+                conversation_id=conversation_id
+            )
+            if interaction_id:
+                logger.info(f"Interaction {interaction_id} saved for user '{username}' in conversation '{conversation_id}'")
+            else:
+                logger.warning(f"Failed to save interaction for user '{username}' - no interaction ID returned")
+        except Exception as e:
+            logger.error(f"Failed to save interaction to database: {e}")
+            # We don't want to fail the request if logging fails
         
         processing_time = (time.time() - start_time) * 1000
         logger.info(f"Agent query processed in {processing_time:.2f}ms")
@@ -234,7 +253,7 @@ async def check_agent_health(
     Check the health status of the medical query agent.
     """
     try:
-        # Test basic agent functionality
+        # 1. Test basic agent functionality
         test_query = "How many patients are in the database?"
         result = await agent.query(test_query, "health_check")
         
@@ -266,16 +285,16 @@ async def check_agent_health(
 )
 async def get_user_permissions(authorization: str = Header(...)) -> Dict[str, Any]:
     """
-    Obtiene los permisos del usuario desde la base de datos usando el JWT.
+    Obtains user permissions from the database using the JWT.
     
     Headers:
         Authorization: Bearer {jwt_token}
     
     Returns:
-        Información del usuario y sus permisos
+        User information and permissions
     """
     try:
-        # Extraer token del header Authorization
+        # 1. Extract token from Authorization header
         if not authorization.startswith("Bearer "):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -284,7 +303,7 @@ async def get_user_permissions(authorization: str = Header(...)) -> Dict[str, An
         
         token = authorization.replace("Bearer ", "")
         
-        # Obtener información completa del token y permisos
+        # 2. Get full token information and permissions
         token_info = jwt_service.get_token_info(token)
         
         return {
@@ -304,8 +323,9 @@ async def get_user_permissions(authorization: str = Header(...)) -> Dict[str, An
             "message": f"Found {token_info['total_permissions']} permissions for user '{token_info['username']}'"
         }
         
-    except HTTPException:
-        # Re-lanzar HTTPExceptions (errores de JWT)
+    except HTTPException as e:
+        # Re-raise HTTPExceptions (JWT errors, etc.) to be handled by FastAPI
+        logger.error(f"JWT error: {e}")
         raise
     except Exception as e:
         logger.error(f"Error getting user permissions: {e}")

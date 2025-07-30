@@ -2,57 +2,6 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-class VectorizationRequest(BaseModel):
-    
-    query: str = Field(
-        ...,
-        description="Text query to be vectorized",
-        min_length=1,
-        max_length=10000,
-        example="¿Cuáles son los síntomas de la diabetes?"
-    )
-    
-    collection_name: Optional[str] = Field(
-        default=None,
-        description="Name of the collection to search in",
-        example="medical_documents"
-    )
-    
-    top_k: Optional[int] = Field(
-        default=5,
-        description="Number of top similar documents to return",
-        ge=1,
-        le=50,
-        example=5
-    )
-    
-    similarity_threshold: Optional[float] = Field(
-        default=0.7,
-        description="Minimum similarity threshold for results",
-        ge=0.0,
-        le=1.0,
-        example=0.7
-    )
-    
-    include_metadata: Optional[bool] = Field(
-        default=True,
-        description="Whether to include document metadata in response"
-    )
-
-class VectorDocument(BaseModel):
-    id: str = Field(..., description="Document ID")
-    content: str = Field(..., description="Document content")
-    similarity_score: float = Field(..., description="Similarity score", ge=0.0, le=1.0)
-    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Document metadata")
-
-class VectorizationResponse(BaseModel):
-    query: str = Field(..., description="Original query")
-    embedding_model: str = Field(..., description="Embedding model used")
-    documents: List[VectorDocument] = Field(..., description="Similar documents found")
-    total_documents: int = Field(..., description="Total number of documents in collection")
-    search_time_ms: float = Field(..., description="Search time in milliseconds")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Response timestamp")
-
 class ErrorResponse(BaseModel):
     error: str = Field(..., description="Error type")
     message: str = Field(..., description="Error message")
@@ -61,9 +10,27 @@ class ErrorResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str = Field(..., description="Service status")
-    vector_db_status: str = Field(..., description="Vector database status")
+    database_status: str = Field(..., description="Database connection status")
     openai_status: str = Field(..., description="OpenAI connection status")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Health check timestamp")
+
+# Chatbot Interaction Schemas
+class ChatbotInteractionCreate(BaseModel):
+    user_id: str = Field(..., description="User ID from JWT token")
+    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Interaction timestamp")
+    interaction_type: str = Field(..., description="Type of interaction (Appointment, Summary, etc.)")
+    user_message: str = Field(..., description="Original user message")
+    bot_response: str = Field(..., description="Agent's response")
+    conversation_id: Optional[str] = Field(default=None, description="Conversation ID")
+
+class ChatbotInteractionResponse(BaseModel):
+    interaction_id: int = Field(..., description="Interaction ID")
+    user_id: str = Field(..., description="User ID")
+    timestamp: datetime = Field(..., description="Interaction timestamp")
+    interaction_type: str = Field(..., description="Type of interaction")
+    user_message: str = Field(..., description="User message")
+    bot_response: str = Field(..., description="Bot response")
+    conversation_id: Optional[str] = Field(default=None, description="Conversation ID")
 
 # Agent Schemas
 class AgentQueryRequest(BaseModel):

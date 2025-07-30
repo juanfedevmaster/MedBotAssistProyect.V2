@@ -14,8 +14,7 @@ class MedicalQueryAgent:
     """
     A conversational AI agent for medical patient queries using LangChain and OpenAI.
     This agent can search for patient information, get summaries, and filter by demographics.
-    """
-    
+    """    
     def __init__(self):
         """Initialize the Medical Query Agent."""
         self.llm = None
@@ -30,14 +29,15 @@ class MedicalQueryAgent:
             self.llm = ChatOpenAI(
                 api_key=settings.OPENAI_API_KEY,
                 model=settings.OPENAI_MODEL,
-                temperature=0.1,  # Low temperature for consistent medical responses
+                temperature = 0.1,  # I choose a low temperature, because I need a little creativity, but not too much randomness.
+                max_retries=3,
                 max_tokens=1000
             )
             
-            # Initialize tools (only query tools, no creation)
+            # Here is the initialize tools
             tools = ALL_TOOLS
             
-            # Create system prompt for medical queries
+            # Medical prompts for the agent
             system_prompt = """
             You are a medical assistant AI specialized in patient information management. 
             You have access to a patient database and can help healthcare professionals with patient information.
@@ -63,15 +63,17 @@ class MedicalQueryAgent:
             - Focus on helping healthcare professionals make informed decisions
             - When creating patients, ensure all required information is provided and properly formatted
             
-            IMPORTANT: Your capabilities depend on user permissions:
-            - Users with ViewPatients permission can query and search patient information
-            - Users with ManagePatients permission can also create new patient records
+            CRITICAL PERMISSION REQUIREMENTS:
+            - ALL users MUST have 'UseAgent' permission to interact with this agent system
+            - Users with 'ViewPatients' permission can query and search patient information
+            - Users with 'ManagePatients' permission can also create new patient records
             - Users without appropriate permissions will receive access denied messages
+            - The 'UseAgent' permission is checked BEFORE any tool execution
             
             When a user asks for patient information, use the appropriate tools to search the database.
             When a user asks to create/register a new patient, use the create_patient tool if they have permission.
             When a user asks to delete a patient, inform them that deletion is not supported.
-            You can help with writing texts, as long as they are related to medical care and/or associated with drug formulation or medical examinations. Otherwise, inform the user that you cannot help him with that.
+            You can help with writing texts, and improve them, as long as they are related to medical care and/or associated with drug formulation or medical examinations. Otherwise, inform the user that you cannot help him with that.
             """
             
             # Create prompt template
@@ -82,20 +84,20 @@ class MedicalQueryAgent:
                 MessagesPlaceholder(variable_name="agent_scratchpad")
             ])
             
-            # Create the agent
+            # Creation of the agent with tools and prompt
             agent = create_openai_functions_agent(
-                llm=self.llm,
-                tools=tools,
-                prompt=prompt
+                llm = self.llm,
+                tools = tools,
+                prompt = prompt
             )
             
-            # Create agent executor
+            # Here is the agent executor that will handle the agent's execution
             self.agent_executor = AgentExecutor(
-                agent=agent,
-                tools=tools,
-                verbose=True,
-                max_iterations=3,
-                early_stopping_method="generate"
+                agent = agent,
+                tools = tools,
+                verbose = True, # Enable verbose logging for debugging on console in production
+                max_iterations = 3,
+                early_stopping_method = "generate"
             )
             
             logger.info("Medical Query Agent initialized successfully")
@@ -108,35 +110,51 @@ class MedicalQueryAgent:
                    user_permissions: Optional[List[str]] = None, 
                    username: Optional[str] = None, jwt_token: Optional[str] = None) -> Dict[str, Any]:
         """
-        Process a natural language query about patients.
-        
+        Processes a natural language query related to patients.
+
+        This method takes a user's question (e.g., "What medications is Juan Pérez taking?")
+        and interprets it to generate a response using the available data. If a `conversation_id` is provided,
+        it will use it to maintain context across multiple interactions. The method also checks the user’s permissions.
+
         Args:
-            message: Natural language query about patients
-            conversation_id: Optional conversation ID for context
-            user_permissions: List of user permission names
-            username: Username from JWT token
-            jwt_token: JWT token for external API calls
-            
+            message (str): A natural language query about patients.
+            conversation_id (str, optional): ID of the current conversation, used to preserve context.
+            user_permissions (List[str]): List of permissions assigned to the user (e.g., ["view_medical_data"]).
+            username (str): Username extracted from the JWT token.
+            jwt_token (str): JWT token used for authenticating external API calls.
+
         Returns:
-            Dictionary with agent response and metadata
+            dict: A dictionary containing the agent’s response and additional metadata (such as source or response time).
         """
+
         try:
             if not self.agent_executor:
                 raise ValueError("Agent not properly initialized")
 
-            # Set user context for tools to access
+            # 1. Validation JWT token. Is mandatory the UseAgent permission
+            has_use_agent = user_permissions and "UseAgent" in user_permissions
+            if not has_use_agent:
+                logger.warning(f"User {username} attempted to use agent without UseAgent permission")
+                return {
+                    "response": "Access denied: You do not have permission to use the medical agent. The 'Use Agent' permission is required to interact with the system.",
+                    "success": False,
+                    "error": "Missing UseAgent permission",
+                    "conversation_id": conversation_id
+                }
+
+            # 2. Set user context for tools to access
             if username and user_permissions:
                 permission_context.set_user_context(username, user_permissions, jwt_token)
 
-            # Check if user has ViewPatients permission for patient-related queries
+            # 3. Check if the user has ViewPatients permission for patient-related queries.
             has_view_patients = user_permissions and "ViewPatients" in user_permissions
             
-            # Add permission context to the query
+            # 4. Add permission context to the query
             permission_context_msg = f"\nUser: {username}\nPermissions: {', '.join(user_permissions) if user_permissions else 'None'}\n"
             if not has_view_patients:
-                permission_context_msg += "⚠️ User does NOT have ViewPatients permission - tools will restrict access to patient data.\n"
+                permission_context_msg += "User does NOT have ViewPatients permission - tools will restrict access to patient data.\n"
             
-            # Convert conversation history to LangChain format
+            # 5. Convert conversation history to LangChain format
             chat_history = []
             for msg in self.conversation_history[-10:]:  # Keep last 10 messages for context
                 if msg["role"] == "user":
@@ -144,13 +162,13 @@ class MedicalQueryAgent:
                 elif msg["role"] == "assistant":
                     chat_history.append(AIMessage(content=msg["content"]))
 
-            # Execute the agent with permission context
+            # 6. Execute the agent with permission context
             response = self.agent_executor.invoke({
                 "input": f"{permission_context_msg}\nQuery: {message}",
                 "chat_history": chat_history
             })
             
-            # Store conversation history
+            # 7. Store conversation history
             self.conversation_history.append({
                 "role": "user",
                 "content": message,
@@ -178,7 +196,7 @@ class MedicalQueryAgent:
                 "error": str(e)
             }
         finally:
-            # Always clear the context after execution
+            # 8. Always clear the context after execution
             permission_context.clear_context()
     
     def get_conversation_history(self, conversation_id: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -205,7 +223,7 @@ class MedicalQueryAgent:
         return tools_info
     
     def health_check(self) -> Dict[str, Any]:
-        """Check if the agent is properly initialized and working."""
+        """Method to Check if the agent is initialized and working well."""
         try:
             return {
                 "status": "healthy",

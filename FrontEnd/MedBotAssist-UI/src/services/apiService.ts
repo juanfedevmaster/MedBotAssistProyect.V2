@@ -5,7 +5,7 @@ export class ApiService {
   
   private static async handleResponse(response: Response) {
     if (response.status === 401) {
-      // Token expirado o inválido
+      // Token expired or invalid
       TokenManager.clearAuthData();
       window.location.href = '/';
       throw new Error('Session expired. Please login again.');
@@ -18,7 +18,7 @@ export class ApiService {
     return response;
   }
 
-  // Método genérico para realizar peticiones autenticadas
+  // Generic method for making authenticated requests
   static async authenticatedFetch(url: string, options: RequestInit = {}): Promise<Response> {
     const headers = {
       ...TokenManager.getAuthHeaders(),
@@ -33,7 +33,7 @@ export class ApiService {
     return this.handleResponse(response);
   }
 
-  // Métodos específicos para cada endpoint
+  // Specific methods for each endpoint
   static async login(credentials: { userName: string; password: string }) {
     const response = await fetch(API_ENDPOINTS.LOGIN, {
       method: 'POST',
@@ -118,12 +118,12 @@ export class ApiService {
     });
   }
 
-  // Método para verificar si el token sigue siendo válido
+  // Method to check if the token is still valid
   static async validateToken(): Promise<boolean> {
     if (!TokenManager.isAuthenticated()) return false;
 
     try {
-      // Intentar hacer una petición que requiere autenticación
+      // Try to make a request that requires authentication
       const response = await this.authenticatedFetch(API_ENDPOINTS.HOME);
       return response.ok;
     } catch (error) {
@@ -131,14 +131,14 @@ export class ApiService {
     }
   }
 
-  // Método para refrescar el token (si el backend lo soporta)
+  // Method to refresh the token (if the backend supports it)
   static async refreshToken(): Promise<boolean> {
     // Implementar si el backend tiene endpoint de refresh
     // Por ahora retorna false
     return false;
   }
 
-  // Método específico para peticiones a APIs de AI con token obligatorio
+  // Specific method for AI API requests with mandatory token
   static async aiApiFetch(url: string, options: RequestInit = {}): Promise<Response> {
     const token = TokenManager.getToken();
     
