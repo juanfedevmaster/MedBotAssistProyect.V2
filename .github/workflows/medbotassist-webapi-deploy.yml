@@ -16,16 +16,16 @@ jobs:
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: '8.0'
+          dotnet-version: '8.0'  # o la versión que uses
 
       - name: Restore dependencies
-        run: dotnet restore MedBotAssist.WebApi.sln
+        run: dotnet restore BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi.sln
 
       - name: Build solution
-        run: dotnet build MedBotAssist.WebApi.sln --configuration Release --no-restore
+        run: dotnet build BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi.sln --configuration Release --no-restore
 
       - name: Publish WebAPI project
-        run: dotnet publish MedBotAssist.WebApi/MedBotAssist.WebApi.csproj --configuration Release --output ./publish
+        run: dotnet publish BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi/MedBotAssist.WebApi.csproj --configuration Release --output ./publish
 
       - name: Login to Azure
         uses: azure/login@v1
