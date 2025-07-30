@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace MedBotAssist.Models.Models
+namespace MedBotAssist.Models.DTOs
 {
-    public partial class ChatbotInteraction
+    public class ChatbotInteractionDto
     {
         public int InteractionId { get; set; }
 
@@ -17,8 +20,6 @@ namespace MedBotAssist.Models.Models
 
         public string? BotResponse { get; set; }
 
-        public string? ConversationId { get; set; }
-
-        public virtual User? User { get; set; }
+        public string? UserName { get; set; }
     }
 }

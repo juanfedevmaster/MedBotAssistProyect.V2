@@ -125,7 +125,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ doctorId, username }) => {
       } else {
         await ApiService.createPatient(formData);
         setSuccess('Patient created successfully!');
-        // Limpiar el formulario después de crear
+        // Clear the form after creating
         setFormData({
           name: '',
           identificationNumber: '',
@@ -135,7 +135,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ doctorId, username }) => {
         });
       }
 
-      // Redirigir a la lista de pacientes después de un breve delay
+      // Redirect to patient list after a brief delay
       setTimeout(() => {
         navigate('/patients');
       }, 1500);
@@ -166,7 +166,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ doctorId, username }) => {
           <span className="navbar-toggler-icon"></span>
         </button>
         <div className="collapse navbar-collapse" id="navbarMenu">
-          {/* Menu de navegación */}
+          {/* Navigation menu */}
           <ul className="navbar-nav me-auto">
             <li className="nav-item">
               <button
@@ -326,7 +326,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ doctorId, username }) => {
                     />
                   </div>
 
-                  {/* Número de identificación */}
+                  {/* Identification number */}
                   <div className="col-md-6 mb-3">
                     <label htmlFor="identificationNumber" className="form-label fw-bold">
                       <i className="bi bi-card-text me-2"></i>
@@ -365,7 +365,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ doctorId, username }) => {
                     />
                   </div>
 
-                  {/* Teléfono */}
+                  {/* Phone */}
                   <div className="col-md-6 mb-3">
                     <label htmlFor="phoneNumber" className="form-label fw-bold">
                       <i className="bi bi-telephone me-2"></i>
@@ -408,7 +408,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ doctorId, username }) => {
 
                 {/* Botones */}
                 <div className="d-flex justify-content-between gap-3">
-                  {/* Botón Add Note - Solo visible en modo viewing */}
+                  {/* Add Note button - Only visible in viewing mode */}
                   {isViewing && (
                     <button 
                       type="button" 
@@ -455,7 +455,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ doctorId, username }) => {
                 </div>
               </form>
 
-              {/* Información del doctor */}
+              {/* Doctor information */}
               <div className="mt-4 p-3 bg-light rounded">
                 <small className="text-muted">
                   <i className="bi bi-info-circle me-1"></i>

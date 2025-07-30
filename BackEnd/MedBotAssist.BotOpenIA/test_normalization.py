@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script de prueba para validar la normalización de texto en búsquedas.
+Test script to validate text normalization in searches.
 """
 
 import sys
@@ -10,23 +10,23 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from app.services.database_service import normalize_text_for_search
 
 def test_normalization():
-    """Pruebas de normalización de texto"""
+    """Text normalization tests"""
     
-    print("🧪 Pruebas de normalización de texto para búsquedas")
+    print("🧪 Text normalization tests for searches")
     print("=" * 60)
     
     test_cases = [
-        # (texto_original, texto_normalizado_esperado)
+        # (original_text, expected_normalized_text)
         ("Sánchez García", "sanchez garcia"),
         ("José María", "jose maria"),
         ("PÉREZ", "perez"),
         ("Ángel Rodríguez", "angel rodriguez"),
         ("María José Hernández", "maria jose hernandez"),
         ("GONZÁLEZ LÓPEZ", "gonzalez lopez"),
-        ("   Espacio   Extra   ", "espacio extra"),
+        ("   Extra   Space   ", "extra space"),
         ("Niño con ñ", "nino con n"),
-        ("Múltiples   espacios", "multiples espacios"),
-        ("", ""),  # texto vacío
+        ("Multiple   spaces", "multiple spaces"),
+        ("", ""),  # empty text
     ]
     
     all_passed = True
@@ -40,28 +40,28 @@ def test_normalization():
         
         print(f"{i:2d}. {status} '{original}' -> '{result}'")
         if result != expected:
-            print(f"     Esperado: '{expected}'")
+            print(f"     Expected: '{expected}'")
     
     print("\n" + "=" * 60)
     if all_passed:
-        print("✅ Todas las pruebas pasaron correctamente!")
+        print("✅ All tests passed correctly!")
     else:
-        print("❌ Algunas pruebas fallaron.")
+        print("❌ Some tests failed.")
     
     return all_passed
 
 def test_search_examples():
-    """Ejemplos de cómo funcionará la búsqueda"""
+    """Examples of how searches will work"""
     
-    print("\n🔍 Ejemplos de búsquedas que ahora funcionarán:")
+    print("\n🔍 Examples of searches that will now work:")
     print("=" * 60)
     
     examples = [
-        ("Usuario busca: 'sanchez'", "Encontrará: 'Sánchez García'"),
-        ("Usuario busca: 'jose maria'", "Encontrará: 'José María Rodríguez'"),
-        ("Usuario busca: 'PEREZ'", "Encontrará: 'Pérez López'"),
-        ("Usuario busca: 'angel'", "Encontrará: 'Ángel Hernández'"),
-        ("Usuario busca: 'gonzalez'", "Encontrará: 'González Martínez'"),
+        ("User searches: 'sanchez'", "Will find: 'Sánchez García'"),
+        ("User searches: 'jose maria'", "Will find: 'José María Rodríguez'"),
+        ("User searches: 'PEREZ'", "Will find: 'Pérez López'"),
+        ("User searches: 'angel'", "Will find: 'Ángel Hernández'"),
+        ("User searches: 'gonzalez'", "Will find: 'González Martínez'"),
     ]
     
     for search, result in examples:
@@ -74,6 +74,6 @@ if __name__ == "__main__":
     test_search_examples()
     
     if success:
-        print("🎉 La normalización está lista para usar!")
+        print("🎉 Normalization is ready to use!")
     else:
-        print("⚠️  Revisar la implementación de normalización.")
+        print("⚠️  Need to review normalization implementation.")

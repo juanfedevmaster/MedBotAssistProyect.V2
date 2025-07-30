@@ -30,7 +30,7 @@ class PermissionContextService:
         self._local = threading.local()
     
     def set_user_context(self, username: str, permissions: List[str], jwt_token: Optional[str] = None) -> None:
-        """Set the current user context for this thread."""
+        # Set the current user context for this thread.
         self._local.context = UserContext(
             username=username,
             permissions=permissions,
@@ -38,33 +38,33 @@ class PermissionContextService:
         )
     
     def get_user_context(self) -> Optional[UserContext]:
-        """Get the current user context for this thread."""
+        # Get the current user context for this thread.
         return getattr(self._local, 'context', None)
     
     def has_permission(self, permission_name: str) -> bool:
-        """Check if the current user has a specific permission."""
+        # Check if the current user has a specific permission.
         context = self.get_user_context()
         if not context:
             return False
         return permission_name in context.permissions
     
     def get_username(self) -> Optional[str]:
-        """Get the current username."""
+        # Get the current username.
         context = self.get_user_context()
         return context.username if context else None
     
     def get_permissions(self) -> List[str]:
-        """Get the current user permissions."""
+        # Get the current user permissions.
         context = self.get_user_context()
         return context.permissions if context else []
     
     def get_jwt_token(self) -> Optional[str]:
-        """Get the current JWT token."""
+        # Get the current JWT token.
         context = self.get_user_context()
         return context.jwt_token if context else None
     
     def clear_context(self) -> None:
-        """Clear the current user context."""
+        # Clear the current user context.
         if hasattr(self._local, 'context'):
             del self._local.context
 

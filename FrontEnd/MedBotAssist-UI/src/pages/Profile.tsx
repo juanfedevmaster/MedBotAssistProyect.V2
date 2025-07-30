@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import TokenManager from '../utils/tokenManager';
 
 interface ProfileProps {
   doctorId: string | number | null;
@@ -14,9 +15,7 @@ const Profile: React.FC<ProfileProps> = ({ doctorId, username }) => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('doctorId');
-    localStorage.removeItem('username');
+    TokenManager.clearSessionData(); // Usar clearSessionData para mantener conversation_id
     navigate('/');
   };
 
@@ -39,7 +38,7 @@ const Profile: React.FC<ProfileProps> = ({ doctorId, username }) => {
           <span className="navbar-toggler-icon"></span>
         </button>
         <div className="collapse navbar-collapse" id="navbarMenu">
-          {/* Menu de navegación */}
+          {/* Navigation menu */}
           <ul className="navbar-nav me-auto">
             <li className="nav-item">
               <button

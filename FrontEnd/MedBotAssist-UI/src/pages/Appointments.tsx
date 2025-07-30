@@ -21,6 +21,43 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   
+  // Function to convert server timestamp to local date
+  const convertToLocalTime = (dateString: string, timeString?: string): Date => {
+    // If we have both date and time, combine them
+    if (timeString) {
+      const combined = `${dateString}T${timeString}`;
+      return new Date(combined);
+    }
+    // If only date, return as local date
+    return new Date(dateString + 'T00:00:00');
+  };
+
+  // Function to format date and time for display
+  const formatDateTime = (dateString: string, timeString?: string): string => {
+    const localDate = convertToLocalTime(dateString, timeString);
+    if (timeString) {
+      return localDate.toLocaleString();
+    }
+    return localDate.toLocaleDateString();
+  };
+
+  // Function to format time only
+  const formatTime = (timeString: string): string => {
+    const [hours, minutes] = timeString.split(':');
+    const date = new Date();
+    date.setHours(parseInt(hours), parseInt(minutes));
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Function to get current local date in YYYY-MM-DD format
+  const getCurrentLocalDate = (): string => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  
   // Estados para IA
   const [isEditMode, setIsEditMode] = useState(false);
   const [editNotes, setEditNotes] = useState('');
@@ -90,7 +127,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
     loadAppointments();
   }, [doctorId]);
 
-  // Función para manejar la visualización de notas
+  // Function to handle notes visualization
   const handleViewNotes = (appointment: Appointment) => {
     setSelectedAppointment(appointment);
     setEditNotes(appointment.notes || '');
@@ -98,7 +135,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
     setIsNotesModalOpen(true);
   };
 
-  // Función para cerrar el modal y resetear estados
+  // Function to close modal and reset states
   const handleCloseModal = () => {
     setIsNotesModalOpen(false);
     setIsEditMode(false);
@@ -109,7 +146,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
     setSaving(false);
   };
 
-  // Funciones para el modo de edición
+  // Functions for edit mode
   const handleEditMode = () => {
     setIsEditMode(true);
   };
@@ -182,7 +219,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
         // Mostrar mensaje informativo en lugar de error
         setError('Notes updated locally. API endpoint may not be available.');
         
-        // Limpiar el mensaje después de 3 segundos
+        // Clear message after 3 seconds
         setTimeout(() => setError(''), 3000);
       }
     } catch (error) {
@@ -257,7 +294,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
   };
 
   const handleCreateAppointmentClick = (selectedDate?: string) => {
-    const dateToUse = selectedDate || new Date().toISOString().split('T')[0];
+    const dateToUse = selectedDate || getCurrentLocalDate();
     setSelectedDateForNewAppointment(dateToUse);
     setIsCreateModalOpen(true);
     loadPatients();
@@ -333,7 +370,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
     }
   };
 
-  // Funciones para confirmar cita médica
+  // Functions to confirm medical appointment
   const isAppointmentConfirmable = (appointment: Appointment): boolean => {
     const appointmentDateTime = new Date(`${appointment.appointmentDate}T${appointment.appointmentTime}`);
     const now = new Date();
@@ -409,7 +446,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
         // Mostrar mensaje informativo en lugar de error
         setError('Appointment confirmed locally. API endpoint may not be available.');
         
-        // Limpiar el mensaje después de 3 segundos
+        // Clear message after 3 seconds
         setTimeout(() => setError(''), 3000);
       }
     } catch (error) {
@@ -420,13 +457,13 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
     }
   };
 
-  // Funciones para editar cita médica
+  // Functions to edit medical appointment
   const handleEditAppointmentClick = (appointment: Appointment) => {
     setAppointmentToEdit(appointment);
     setEditAppointmentData({
       appointmentDate: appointment.appointmentDate,
       appointmentTime: appointment.appointmentTime,
-      status: 'Pending', // Siempre será Pending como especifica el usuario
+      status: 'Pending', // Will always be Pending as specified by user
       notes: appointment.notes || ''
     });
     setIsEditModalOpen(true);
@@ -517,7 +554,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
         // Mostrar mensaje informativo en lugar de error
         setError('Appointment updated locally. API endpoint may not be available.');
         
-        // Limpiar el mensaje después de 3 segundos
+        // Clear message after 3 seconds
         setTimeout(() => setError(''), 3000);
       }
     } catch (error) {
@@ -551,7 +588,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
     const days = [];
     const current = new Date(startCalendar);
     
-    for (let i = 0; i < 42; i++) { // 6 semanas × 7 días
+    for (let i = 0; i < 42; i++) { // 6 weeks × 7 days
       days.push({
         day: current.getDate(),
         date: current.getDate().toString(),
@@ -626,7 +663,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
     );
   }
 
-  // Estadísticas de citas
+  // Appointment statistics
   const totalAppointments = appointments.length;
   const pendingAppointments = appointments.filter(apt => apt.status.toLowerCase() === 'pending').length;
   const confirmedAppointments = appointments.filter(apt => apt.status.toLowerCase() === 'confirmed').length;
@@ -647,7 +684,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
           <span className="navbar-toggler-icon"></span>
         </button>
         <div className="collapse navbar-collapse" id="navbarMenu">
-          {/* Menu de navegación */}
+          {/* Navigation menu */}
           <ul className="navbar-nav me-auto">
             <li className="nav-item">
               <button
@@ -760,7 +797,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
               </button>
             </div>
 
-            {/* Estadísticas */}
+            {/* Statistics */}
             <div className="row mb-4">
               <div className="col-md-3 mb-3">
                 <div className="card border-0 shadow-sm h-100">
@@ -895,9 +932,9 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                           filteredAppointments.map((appointment) => (
                             <tr key={appointment.appointmentId}>
                               <td>
-                                <strong>{appointment.appointmentTime}</strong>
+                                <strong>{formatTime(appointment.appointmentTime)}</strong>
                                 <br />
-                                <small className="text-muted">{appointment.appointmentDate}</small>
+                                <small className="text-muted">{formatDateTime(appointment.appointmentDate)}</small>
                               </td>
                               <td>
                                 <div className="d-flex align-items-center">
@@ -937,7 +974,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                                   today.setHours(0, 0, 0, 0); // Resetear horas para comparar solo fecha
                                   appointmentDate.setHours(0, 0, 0, 0); // Resetear horas para comparar solo fecha
                                   
-                                  // Solo mostrar botón de atender si la cita está confirmada y es hoy o en el futuro
+                                  // Only show attend button if appointment is confirmed and is today or in the future
                                   if (appointment.status.toLowerCase() === 'confirmed' && appointmentDate >= today) {
                                     return (
                                       <button 
@@ -966,7 +1003,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                                   >
                                     <i className="bi bi-file-medical"></i>
                                   </button>
-                                  {/* Botón de confirmar cita - solo para citas futuras y no confirmadas */}
+                                  {/* Confirm appointment button - only for future and unconfirmed appointments */}
                                   {isAppointmentConfirmable(appointment) && (
                                     <button 
                                       className="btn btn-outline-success"
@@ -982,7 +1019,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                                     today.setHours(0, 0, 0, 0); // Resetear horas para comparar solo fecha
                                     appointmentDate.setHours(0, 0, 0, 0); // Resetear horas para comparar solo fecha
                                     
-                                    // Solo mostrar botón de editar si la cita es hoy o en el futuro
+                                    // Only show edit button if appointment is today or in the future
                                     if (appointmentDate >= today) {
                                       return (
                                         <button 
@@ -1007,7 +1044,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                 ) : (
                   /* Vista de Calendario */
                   <div>
-                    {/* Navegación del calendario */}
+                    {/* Calendar navigation */}
                     <div className="d-flex justify-content-between align-items-center mb-4">
                       <button 
                         className="btn btn-outline-primary"
@@ -1036,7 +1073,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                       borderRadius: '0.375rem',
                       overflow: 'hidden'
                     }}>
-                      {/* Encabezados de días */}
+                      {/* Day headers */}
                       {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
                         <div key={day} className="text-center fw-bold p-2" style={{ 
                           backgroundColor: '#405de6', 
@@ -1046,13 +1083,13 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                         </div>
                       ))}
                       
-                      {/* Días del calendario */}
+                      {/* Calendar days */}
                       {generateCalendarDays().map((day) => {
                         const dayAppointments = appointments.filter(appointment => {
                           const appointmentDate = new Date(appointment.appointmentDate);
                           const dayDate = day.fullDate;
                           
-                          // Comparar solo año, mes y día (ignorar hora)
+                          // Compare only year, month and day (ignore time)
                           return appointmentDate.getDate() === dayDate.getDate() &&
                                  appointmentDate.getMonth() === dayDate.getMonth() &&
                                  appointmentDate.getFullYear() === dayDate.getFullYear();
@@ -1071,7 +1108,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                               border: day.isCurrentMonth && day.fullDate >= new Date() ? '2px solid transparent' : '1px solid #e9ecef'
                             }}
                             onClick={() => {
-                              // Solo permitir selección de fechas actuales o futuras
+                              // Only allow selection of current or future dates
                               if (day.isCurrentMonth && day.fullDate >= new Date()) {
                                 const selectedDate = day.fullDate.toISOString().split('T')[0];
                                 handleCreateAppointmentClick(selectedDate);
@@ -1124,7 +1161,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                   </div>
                 )}
 
-                {/* Información del doctor */}
+                {/* Doctor information */}
                 <div className="mt-4 p-3 bg-light rounded">
                   <small className="text-muted">
                     <i className="bi bi-info-circle me-1"></i>
@@ -1188,7 +1225,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                           cursor: (aiLoading || saving) ? 'not-allowed' : 'text'
                         }}
                       />
-                      {/* Botón flotante de IA */}
+                      {/* AI floating button */}
                       <button
                         type="button"
                         className="btn btn-primary btn-sm position-absolute"
@@ -1285,7 +1322,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
         </div>
       )}
 
-      {/* Modal de confirmación para mejorar nota con IA */}
+      {/* Confirmation modal to improve note with AI */}
       {showAiModal && (
         <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog modal-dialog-centered">
@@ -1334,7 +1371,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
         </div>
       )}
 
-      {/* Modal para confirmar cita médica */}
+      {/* Modal to confirm medical appointment */}
       {isConfirmModalOpen && appointmentToConfirm && (
         <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog modal-dialog-centered">
@@ -1380,7 +1417,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                       <strong>Date:</strong>
                     </div>
                     <div className="col-sm-8">
-                      {appointmentToConfirm.appointmentDate}
+                      {formatDateTime(appointmentToConfirm.appointmentDate)}
                     </div>
                   </div>
                   <div className="row">
@@ -1388,7 +1425,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                       <strong>Time:</strong>
                     </div>
                     <div className="col-sm-8">
-                      {appointmentToConfirm.appointmentTime}
+                      {formatTime(appointmentToConfirm.appointmentTime)}
                     </div>
                   </div>
                   <div className="row">
@@ -1446,7 +1483,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
         </div>
       )}
 
-      {/* Modal para editar cita médica */}
+      {/* Modal to edit medical appointment */}
       {isEditModalOpen && appointmentToEdit && (
         <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog modal-lg">
@@ -1481,7 +1518,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                       className="form-control"
                       value={editAppointmentData.appointmentDate}
                       onChange={(e) => setEditAppointmentData(prev => ({ ...prev, appointmentDate: e.target.value }))}
-                      min={new Date().toISOString().split('T')[0]}
+                      min={getCurrentLocalDate()}
                       required
                     />
                   </div>
@@ -1629,7 +1666,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                       className="form-control"
                       value={selectedDateForNewAppointment}
                       onChange={(e) => setSelectedDateForNewAppointment(e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
+                      min={getCurrentLocalDate()}
                     />
                   </div>
                   <div className="col-md-6 mb-3">

@@ -126,7 +126,8 @@ namespace MedBotAssist.WebApi.Services.AuthService
                 {
                     new Claim(JwtRegisteredClaimNames.Sub, user.UserId.ToString()),
                     new Claim("name", user.UserName),
-                    new Claim("role", user.Role)
+                    new Claim("role", user.Role),
+                    new Claim("userid", user.UserId.ToString())
                 };
 
             claims.AddRange(permissions.Select(p => new Claim("permission", p)));

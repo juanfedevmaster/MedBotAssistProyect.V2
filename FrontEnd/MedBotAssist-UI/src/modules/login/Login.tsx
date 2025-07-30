@@ -30,6 +30,16 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         const username = data.user?.username || userName;
         login(data.token, data.doctorId, username);
         onLogin(true, data.doctorId, username);
+        
+        // Generate a new conversation_id for this session
+        // Generated after doctor information is saved
+        // para que el conversation_id incluya el doctorId correcto
+        setTimeout(() => {
+          // Disparar evento personalizado para indicar que se hizo login
+          window.dispatchEvent(new CustomEvent('userLoginSuccess', {
+            detail: { doctorId: data.doctorId, username }
+          }));
+        }, 100);
       } else {
         throw new Error('Invalid response from server');
       }

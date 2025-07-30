@@ -16,7 +16,7 @@ const App = () => {
   const [doctorId, setDoctorId] = useState<string | number | null>(null);
   const [username, setUsername] = useState<string>('');
 
-  // Verificar autenticación al cargar la aplicación
+  // Check authentication when loading the application
   useEffect(() => {
     const token = TokenManager.getToken();
     const storedDoctorId = TokenManager.getDoctorId();
@@ -81,7 +81,7 @@ const App = () => {
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
       
-      {/* Chat flotante - Solo aparece cuando el usuario está autenticado */}
+      {/* Floating chat - Only appears when user is authenticated */}
       {isAuthenticated && <FloatingChat />}
     </Router>
   );
