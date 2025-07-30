@@ -1,52 +1,40 @@
-trigger:
-  branches:
-    include:
+name: Build and Deploy MedBotAssist WebAPI (.NET)
+
+on:
+  push:
+    branches:
       - main
 
-pool:
-  vmImage: 'windows-latest'
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
 
-variables:
-  buildConfiguration: 'Release'
-  solution: '**/*.sln'
-  project: '**/MedBotAssist.WebApi.csproj'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-steps:
-- task: UseDotNet@2
-  inputs:
-    packageType: 'sdk'
-    version: '8.0.x'
-    installationPath: $(Agent.ToolsDirectory)/dotnet
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0'
 
-- task: NuGetToolInstaller@1
+      - name: Restore dependencies
+        run: dotnet restore MedBotAssist.WebApi.sln
 
-- task: NuGetCommand@2
-  inputs:
-    restoreSolution: '$(solution)'
+      - name: Build solution
+        run: dotnet build MedBotAssist.WebApi.sln --configuration Release --no-restore
 
-- task: VSBuild@1
-  inputs:
-    solution: '$(solution)'
-    msbuildArgs: '-property:DeployOnBuild=true'
-    platform: 'Any CPU'
-    configuration: '$(buildConfiguration)'
+      - name: Publish WebAPI project
+        run: dotnet publish MedBotAssist.WebApi/MedBotAssist.WebApi.csproj --configuration Release --output ./publish
 
-- task: DotNetCoreCLI@2
-  inputs:
-    command: 'publish'
-    publishWebProjects: true
-    arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
-    zipAfterPublish: true
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-- task: PublishBuildArtifacts@1
-  inputs:
-    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-    ArtifactName: 'drop'
-    publishLocation: 'Container'
-
-- task: AzureWebApp@1
-  inputs:
-    azureSubscription: 'Azure subscription 1 (e40e28d8-f53d-43b8-898b-2c93dc9ef814)'
-    appType: 'webApp'
-    appName: 'medbotassist'
-    package: '$(Build.ArtifactStagingDirectory)/**/*.zip'
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: medbotassist
+          slot-name: production
+          package: ./publish
