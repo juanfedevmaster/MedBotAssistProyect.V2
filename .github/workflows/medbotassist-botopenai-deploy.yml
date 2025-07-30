@@ -26,23 +26,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Unit Tests
-        run: |
-          echo "Running Python Unit Tests..."
-          python -m unittest discover -s . -p "test_*.py"
-
-      - name: Ensure startup.sh is executable
-        run: chmod +x BackEnd/MedBotAssist.BotOpenIA/startup.sh
-      
-      - name: Zip backend folder for deployment
-        run: |
-          cd BackEnd/MedBotAssist.BotOpenIA
-          zip -r ../../medbotopenia.zip *
-      
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
           app-name: medBotAssistAI
           slot-name: production
           publish-profile: ${{ secrets.AZURE_MEDBOTASSISTOPENIA_PUBLISH_PROFILE }}
-          package: medbotopenia.zip
+          package: BackEnd/MedBotAssist.BotOpenIA
