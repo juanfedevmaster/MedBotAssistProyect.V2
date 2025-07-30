@@ -137,5 +137,35 @@ namespace MedBotAssist.WebApi.Services.AppointmentService
                 .Where(a => a.DoctorId == doctorId && a.AppointmentDate == date)
                 .ToListAsync();
         }
+
+        public async Task<Appointment> ValidateAppoinmentExist(Appointment appointment)
+        {
+            bool appointmentExists = _context.Appointments.Any(x =>
+                x.AppointmentDate == appointment.AppointmentDate &&
+                x.AppointmentTime == appointment.AppointmentTime &&
+                x.DoctorId == appointment.DoctorId);
+
+            if (appointmentExists)
+            {
+                var existingAppointment =
+                    await _context.Appointments
+                    .Include(p => p.Patient)
+                    .FirstOrDefaultAsync(x =>
+                        x.AppointmentDate == appointment.AppointmentDate &&
+                        x.AppointmentTime == appointment.AppointmentTime &&
+                        x.DoctorId == appointment.DoctorId);
+
+                return new Appointment
+                {
+                    AppointmentId = existingAppointment.AppointmentId,
+                    PatientId = existingAppointment.PatientId,
+                    Patient = existingAppointment.Patient,
+                    AppointmentTime = existingAppointment.AppointmentTime,
+                    AppointmentDate = existingAppointment.AppointmentDate
+                };
+            }
+
+            return null;
+        }
     }
 }

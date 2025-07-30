@@ -4,6 +4,15 @@ import { PatientCreateDto, PatientUpdateDto, PatientInfoResponseDto } from '../t
 import { useAuth } from '../hooks/useAuth';
 import ApiService from '../services/apiService';
 
+// Helper function to get current date in YYYY-MM-DD format
+const getCurrentDate = (): string => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 interface PatientFormProps {
   doctorId: string | number | null;
   username?: string;
@@ -82,6 +91,20 @@ const PatientForm: React.FC<PatientFormProps> = ({ doctorId, username }) => {
       setError('Date of birth is required');
       return false;
     }
+    
+    // Validate that date of birth is not in the future
+    const today = new Date();
+    const birthDate = new Date(formData.dateOfBirth);
+    
+    // Reset time to compare only dates
+    today.setHours(23, 59, 59, 999); // End of today
+    birthDate.setHours(0, 0, 0, 0); // Start of birth date
+    
+    if (birthDate > today) {
+      setError('Date of birth cannot be in the future');
+      return false;
+    }
+    
     if (!formData.phoneNumber.trim()) {
       setError('Phone number is required');
       return false;
@@ -322,6 +345,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ doctorId, username }) => {
                       placeholder="Enter patient's full name"
                       required={!isViewing}
                       readOnly={isViewing}
+                      autoComplete="off"
                       style={isViewing ? { backgroundColor: '#f8f9fa' } : {}}
                     />
                   </div>
@@ -342,6 +366,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ doctorId, username }) => {
                       placeholder="Enter ID/Passport number"
                       required={!isViewing}
                       readOnly={isViewing}
+                      autoComplete="off"
                       style={isViewing ? { backgroundColor: '#f8f9fa' } : {}}
                     />
                   </div>
@@ -361,6 +386,8 @@ const PatientForm: React.FC<PatientFormProps> = ({ doctorId, username }) => {
                       onChange={handleInputChange}
                       required={!isViewing}
                       readOnly={isViewing}
+                      autoComplete="off"
+                      max={getCurrentDate()}
                       style={isViewing ? { backgroundColor: '#f8f9fa' } : {}}
                     />
                   </div>
@@ -381,6 +408,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ doctorId, username }) => {
                       placeholder="Enter phone number"
                       required={!isViewing}
                       readOnly={isViewing}
+                      autoComplete="off"
                       style={isViewing ? { backgroundColor: '#f8f9fa' } : {}}
                     />
                   </div>
@@ -401,6 +429,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ doctorId, username }) => {
                       placeholder="Enter email address"
                       required={!isViewing}
                       readOnly={isViewing}
+                      autoComplete="off"
                       style={isViewing ? { backgroundColor: '#f8f9fa' } : {}}
                     />
                   </div>
