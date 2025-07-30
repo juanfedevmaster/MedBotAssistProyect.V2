@@ -26,26 +26,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Create startup.sh
-        run: |
-          cd BackEnd/MedBotAssist.BotOpenIA
-          cat > startup.sh << 'EOF'
-          #!/bin/bash
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          python server.py
-          EOF
-          chmod +x startup.sh
-
-      - name: Zip backend folder for deployment
-        run: |
-          cd BackEnd/MedBotAssist.BotOpenIA
-          zip -r ../../medbotopenia.zip .
-
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
           app-name: medBotAssistAI
           slot-name: production
           publish-profile: ${{ secrets.AZURE_MEDBOTASSISTOPENIA_PUBLISH_PROFILE }}
-          package: medbotopenia.zip
+          package: BackEnd/MedBotAssist.BotOpenIA
