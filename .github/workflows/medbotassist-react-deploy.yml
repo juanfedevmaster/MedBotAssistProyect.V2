@@ -31,5 +31,5 @@ jobs:
         with:
           app-name: medBotAssistui 
           slot-name: production
-          publish-profile: ${{ secrets.AZURE_CREDENTIALS }}
+          publish-profile: ${{ secrets.AZURE_MEDBOTASSISTUI_PUBLISH_PROFILE }}
           package: FrontEnd/MedBotAssist-UI/build
