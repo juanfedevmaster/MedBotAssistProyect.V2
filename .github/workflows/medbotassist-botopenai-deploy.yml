@@ -26,32 +26,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Ensure startup.sh exists and is correct
-        run: |
-          cd BackEnd/MedBotAssist.BotOpenIA
-          if [ ! -f startup.sh ]; then
-            echo "Creating startup.sh"
-            cat > startup.sh << 'EOF'
-          #!/bin/bash
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          python server.py
-          EOF
-          fi
-          chmod +x startup.sh
-          ls -la startup.sh
-
       - name: Zip backend folder for deployment
         run: |
           cd BackEnd/MedBotAssist.BotOpenIA
           zip -r ../../medbotopenia.zip .
-
-      - name: Verify ZIP integrity and size
-        run: |
-          echo "ZIP file size:"
-          ls -lh medbotopenia.zip
-          echo "Testing ZIP integrity:"
-          unzip -t medbotopenia.zip
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
@@ -60,3 +38,4 @@ jobs:
           slot-name: production
           publish-profile: ${{ secrets.AZURE_MEDBOTASSISTOPENIA_PUBLISH_PROFILE }}
           package: medbotopenia.zip
+          startup-command: 'pip install --upgrade pip && pip install -r requirements.txt && python server.py'
