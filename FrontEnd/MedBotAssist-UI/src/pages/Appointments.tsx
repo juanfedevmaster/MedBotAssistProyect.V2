@@ -420,6 +420,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
   const isAppointmentConfirmable = (appointment: Appointment): boolean => {
     const appointmentDateTime = new Date(`${appointment.appointmentDate}T${appointment.appointmentTime}`);
     const now = new Date();
+
     return appointmentDateTime >= now && appointment.status.toLowerCase() !== 'confirmed';
   };
 
@@ -1107,9 +1108,12 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctorId, username }) => {
                                     isConfirmed: appointment.status.toLowerCase() === 'confirmed',
                                     shouldShowButton: appointment.status.toLowerCase() === 'confirmed' && appointmentDateOnly.getTime() >= todayOnly.getTime()
                                   });
-                                  
+
+                                  const tomorrow = new Date(todayOnly);
+                                  tomorrow.setDate(todayOnly.getDate() + 1);
+
                                   // Show attend button if appointment is confirmed and is TODAY or in the FUTURE
-                                  if (appointment.status.toLowerCase() === 'confirmed' && appointmentDateOnly.getTime() >= todayOnly.getTime()) {
+                                  if (appointment.status.toLowerCase() === 'confirmed' && appointmentDateOnly.getTime() >= todayOnly.getTime() && appointmentDateOnly.getTime() < tomorrow.getTime()) {
                                     console.log('SHOWING ATTEND BUTTON for appointment:', appointment.appointmentId);
                                     return (
                                       <button 
