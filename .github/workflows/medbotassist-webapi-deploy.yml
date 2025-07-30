@@ -1,4 +1,4 @@
-name: Build and Deploy MedBotAssist WebAPI (.NET)
+name: Build, Test and Deploy MedBotAssist WebAPI
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -16,13 +16,29 @@ jobs:
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: '8.0'  # o la versión que uses
+          dotnet-version: '8.0'
 
       - name: Restore dependencies
         run: dotnet restore BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi.sln
 
       - name: Build solution
         run: dotnet build BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi.sln --configuration Release --no-restore
+
+      - name: Run tests
+        run: dotnet test BackEnd/MedBotAssist.WebApi/MedBotAssist.Test/MedBotAssist.Test.csproj --no-build --verbosity normal
+
+  deploy-to-azure:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0'
 
       - name: Publish WebAPI project
         run: dotnet publish BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi/MedBotAssist.WebApi.csproj --configuration Release --output ./publish
