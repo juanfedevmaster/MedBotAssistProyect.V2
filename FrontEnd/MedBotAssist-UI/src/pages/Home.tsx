@@ -24,7 +24,7 @@ const Home: React.FC<HomeProps> = ({ doctorId, username }) => {
     return startOfWeek;
   });
 
-  // Cargar citas médicas y información del doctor
+  // Load medical appointments and doctor information
   useEffect(() => {
     const fetchData = async () => {
       if (!doctorId) return;
@@ -32,12 +32,12 @@ const Home: React.FC<HomeProps> = ({ doctorId, username }) => {
       try {
         setLoading(true);
         
-        // Cargar citas médicas
+        // Load medical appointments
         const appointmentsResponse = await ApiService.authenticatedFetch(API_ENDPOINTS.APPOINTMENTS_GET_BY_DOCTOR(doctorId));
         const appointmentsData = await appointmentsResponse.json();
         setAppointments(appointmentsData || []);
         
-        // Simular información del doctor (puedes reemplazar por API real si existe)
+        // Simulate doctor information (you can replace with real API if it exists)
         setDoctorInfo({
           medicalLicenseNumber: "CARD12345",
           specialtyName: "Cardiología",
@@ -54,7 +54,7 @@ const Home: React.FC<HomeProps> = ({ doctorId, username }) => {
     fetchData();
   }, [doctorId, username]);
 
-  // Generar días de la semana actual
+  // Generate current week days
   const generateWeekDays = () => {
     const days = [];
     for (let i = 0; i < 7; i++) {
@@ -65,7 +65,7 @@ const Home: React.FC<HomeProps> = ({ doctorId, username }) => {
     return days;
   };
 
-  // Obtener citas para un día específico
+  // Get appointments for a specific day
   const getAppointmentsForDay = (date: Date) => {
     const dateStr = date.toISOString().split('T')[0];
     return appointments.filter(apt => {
@@ -86,8 +86,8 @@ const Home: React.FC<HomeProps> = ({ doctorId, username }) => {
   };
 
   const handleAttendAppointment = (appointmentId: number) => {
-    // TODO: Implementar navegación a página de atender
-    console.log('Atender cita:', appointmentId);
+    // TODO: Implement navigation to appointment page
+    console.log('Attending appointment:', appointmentId);
   };
 
   const handleLogout = () => {
@@ -138,7 +138,7 @@ const Home: React.FC<HomeProps> = ({ doctorId, username }) => {
           <span className="navbar-toggler-icon"></span>
         </button>
         <div className="collapse navbar-collapse" id="navbarMenu">
-          {/* Menu de navegación */}
+          {/* Navigation menu */}
           <ul className="navbar-nav me-auto">
             <li className="nav-item">
               <button
@@ -255,7 +255,7 @@ const Home: React.FC<HomeProps> = ({ doctorId, username }) => {
                   </div>
                 ) : (
                   <>
-                    {/* Headers de días de la semana */}
+                    {/* Week day headers */}
                     <div className="row g-0 border-bottom">
                       {generateWeekDays().map((day, index) => (
                         <div key={index} className="col text-center py-3 border-end">
@@ -269,7 +269,7 @@ const Home: React.FC<HomeProps> = ({ doctorId, username }) => {
                       ))}
                     </div>
                     
-                    {/* Citas de cada día */}
+                    {/* Appointments for each day */}
                     <div className="row g-0" style={{ minHeight: '400px' }}>
                       {generateWeekDays().map((day, dayIndex) => {
                         const dayAppointments = getAppointmentsForDay(day);
@@ -331,7 +331,7 @@ const Home: React.FC<HomeProps> = ({ doctorId, username }) => {
             </div>
           </div>
 
-          {/* Tarjeta de información del doctor - Columna derecha */}
+          {/* Doctor information card - Right column */}
           <div className="col-md-4">
             <div className="card shadow-lg border-0" style={{ background: 'rgba(255,255,255,0.95)' }}>
               <div className="card-header text-center" style={{ backgroundColor: '#405de6', color: 'white' }}>
@@ -382,7 +382,7 @@ const Home: React.FC<HomeProps> = ({ doctorId, username }) => {
               </div>
             </div>
 
-            {/* Estadísticas rápidas */}
+            {/* Quick statistics */}
             <div className="card shadow-lg border-0 mt-4" style={{ background: 'rgba(255,255,255,0.95)' }}>
               <div className="card-header text-center" style={{ backgroundColor: '#405de6', color: 'white' }}>
                 <h6 className="mb-0 fw-bold">

@@ -15,13 +15,13 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Permitir todos los orígenes para Azure
+    allow_origins=["*"],  # Allow all origins for Azure
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routers - agente principal que se adapta al entorno
+# Include routers - principal agent that adapts to the environment
 app.include_router(
     agent.router,
     prefix="/api/v1/agent",

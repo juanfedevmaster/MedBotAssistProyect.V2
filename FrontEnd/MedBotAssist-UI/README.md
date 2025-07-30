@@ -1,72 +1,72 @@
 # MedBotAssist UI
 
-MedBotAssist es una aplicación diseñada para ayudar a los usuarios a gestionar sus necesidades de salud mediante un asistente virtual. Esta interfaz de usuario está construida con React 18 y TypeScript.
+MedBotAssist is an application designed to help users manage their health needs through a virtual assistant. This user interface is built with React 18 and TypeScript.
 
-## Estructura del Proyecto
+## Project Structure
 
-El proyecto tiene la siguiente estructura de archivos:
+The project has the following file structure:
 
 ```
 MedBotAssist-UI
 ├── src
-│   ├── App.tsx                # Componente principal que maneja las rutas
-│   ├── index.tsx              # Punto de entrada de la aplicación
+│   ├── App.tsx                # Main component that handles routes
+│   ├── index.tsx              # Application entry point
 │   ├── config
-│   │   └── endpoints.ts       # Configuración de los endpoints de la API
+│   │   └── endpoints.ts       # API endpoints configuration
 │   ├── modules
 │   │   └── login
-│   │       ├── Login.tsx      # Componente de inicio de sesión
-│   │       └── Login.module.css# Estilos para el componente de inicio de sesión
+│   │       ├── Login.tsx      # Login component
+│   │       └── Login.module.css# Styles for the login component
 │   ├── pages
-│   │   └── Home.tsx           # Página principal de la aplicación
+│   │   └── Home.tsx           # Main application page
 │   └── types
-│       └── index.ts           # Tipos e interfaces utilizados en la aplicación
-├── package.json                # Configuración de npm y dependencias
-├── tsconfig.json              # Configuración de TypeScript
-└── README.md                  # Documentación del proyecto
+│       └── index.ts           # Types and interfaces used in the application
+├── package.json                # npm configuration and dependencies
+├── tsconfig.json              # TypeScript configuration
+└── README.md                  # Project documentation
 ```
 
-## Instalación
+## Installation
 
-Para instalar las dependencias del proyecto, ejecuta el siguiente comando en la raíz del proyecto:
+To install the project dependencies, run the following command in the project root:
 
 ```
 npm install
 ```
 
-## Ejecución
+## Execution
 
-Para iniciar la aplicación en modo de desarrollo, utiliza el siguiente comando:
+To start the application in development mode, use the following command:
 
 ```
 npm start
 ```
 
-Esto abrirá la aplicación en tu navegador predeterminado.
+This will open the application in your default browser.
 
-## Contribuciones
+## Contributions
 
-Las contribuciones son bienvenidas. Si deseas contribuir, por favor abre un issue o un pull request en el repositorio.
+Contributions are welcome. If you wish to contribute, please open an issue or a pull request in the repository.
 
-## Licencia
+## License
 
-Este proyecto está bajo la Licencia MIT.
+This project is licensed under the MIT License.
 
-## Solución de problemas comunes
+## Common Troubleshooting
 
-### Error: "Patient ID not found or user not authenticated" en /patients/notes/:id
+### Error: "Patient ID not found or user not authenticated" in /patients/notes/:id
 
-Este error puede ocurrir cuando navegas directamente a la URL de notas del paciente. Esto se debe a que la aplicación necesita verificar tu autenticación primero.
+This error may occur when you navigate directly to the patient notes URL. This is because the application needs to verify your authentication first.
 
-**Solución:**
-1. Asegúrate de estar logueado antes de navegar a las notas
-2. Si ya estás logueado, ve primero a la página de pacientes (`/patients`)
-3. Luego navega al detalle del paciente (`/patients/view/:id`)
-4. Finalmente usa el botón "Add Note" para acceder a las notas
+**Solution:**
+1. Make sure you are logged in before navigating to notes
+2. If you are already logged in, go first to the patients page (`/patients`)
+3. Then navigate to the patient detail (`/patients/view/:id`)
+4. Finally use the "Add Note" button to access notes
 
-**Nota técnica:** La aplicación ahora verifica automáticamente la autenticación almacenada al cargar, pero es recomendable seguir el flujo de navegación normal.
+**Technical note:** The application now automatically verifies stored authentication when loading, but it is recommended to follow the normal navigation flow.
 
-## Para refrescar el proceso en el puerto 3000 usa
+## To refresh the process on port 3000 use
 
 netstat -ano | findstr :3000
 taskkill /PID {LISTENING} /F

@@ -11,24 +11,24 @@ logger = logging.getLogger(__name__)
 
 def normalize_text_for_search(text: str) -> str:
     """
-    Normaliza texto para búsquedas más flexibles.
-    Elimina tildes, convierte a minúsculas y elimina espacios extra.
+    Normalizes text for more flexible searches.
+    Removes accents, converts to lowercase, and removes extra spaces.
     
-    Ejemplos:
+    Examples:
     - "Sánchez García" -> "sanchez garcia"
     - "José María" -> "jose maria"
     - "PÉREZ" -> "perez"
     """
     if not text:
         return ""
-    
-    # Normalizar unicode (eliminar tildes y acentos)
+
+    # Normalize unicode (remove accents)
     normalized = unicodedata.normalize('NFD', text)
-    # Eliminar caracteres de marca (tildes, acentos)
+    # Remove diacritical marks (accents)
     without_accents = ''.join(char for char in normalized if unicodedata.category(char) != 'Mn')
-    # Convertir a minúsculas y eliminar espacios extra
+    # Convert to lowercase and trim extra spaces
     clean_text = without_accents.lower().strip()
-    # Normalizar espacios múltiples a uno solo
+    # Normalize multiple spaces to a single space
     clean_text = ' '.join(clean_text.split())
     
     return clean_text
@@ -38,7 +38,13 @@ class DatabaseService:
     
     def __init__(self):
         self.engine: Optional[Engine] = None
-        self._initialize_connection()
+        self._initialized = False
+    
+    def _ensure_connection(self):
+        """Ensures database connection is established (lazy initialization)."""
+        if not self._initialized:
+            self._initialize_connection()
+            self._initialized = True
     
     def _initialize_connection(self):
         drivers_to_try = [
@@ -83,6 +89,7 @@ class DatabaseService:
     
     def get_all_patients(self) -> List[Dict[str, Any]]:
         try:
+            self._ensure_connection()
             query = text("""
                 SELECT 
                     FullName,
@@ -117,6 +124,7 @@ class DatabaseService:
     
     def get_patient_by_id(self, patient_id: int) -> Optional[Dict[str, Any]]:
         try:
+            self._ensure_connection()
             query = text("""
                 SELECT 
                     FullName,
@@ -152,6 +160,7 @@ class DatabaseService:
     
     def search_patients_by_name(self, name: str) -> List[Dict[str, Any]]:
         try:
+            self._ensure_connection()
             # Normalizar el término de búsqueda
             normalized_search = normalize_text_for_search(name)
             
@@ -273,6 +282,7 @@ class DatabaseService:
     
     def check_database_health(self) -> Dict[str, str]:
         try:
+            self._ensure_connection()
             with self.engine.connect() as conn:
                 result = conn.execute(text("SELECT COUNT(*) as patient_count FROM Patients"))
                 patient_count = result.first().patient_count
@@ -293,15 +303,16 @@ class DatabaseService:
     
     def get_user_permissions(self, username: str) -> List[Dict[str, Any]]:
         """
-        Obtiene los permisos de un usuario desde la base de datos usando el script SQL proporcionado.
+        Obtains a user's permissions from the database using the provided SQL script.
         
         Args:
-            username: Nombre de usuario (del claim 'name' del JWT)
+            username: Username (from the JWT's 'name' claim)
             
         Returns:
-            Lista de permisos con PermissionId, PermissionName y Description
+            List of permissions with PermissionId, PermissionName, and Description
         """
         try:
+            self._ensure_connection()
             query = text("""
                 SELECT p.PermissionId, p.PermissionName, p.Description 
                 FROM Users as u

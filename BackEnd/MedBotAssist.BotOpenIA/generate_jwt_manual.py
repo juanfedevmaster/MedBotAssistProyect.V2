@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script simple para generar JWT usando solo bibliotecas estándar
+Simple script to generate JWT using only standard libraries
 """
 
 import base64
@@ -20,7 +20,7 @@ def base64url_encode(data):
     return encoded.rstrip('=')
 
 def create_jwt_manual():
-    """Crea un JWT manualmente sin PyJWT"""
+    # Create a JWT manually without PyJWT
     
     # Header
     header = {
@@ -41,14 +41,14 @@ def create_jwt_manual():
         "exp": current_time + 3600  # 1 hora
     }
     
-    # Codificar header y payload
+    # Encode header and payload
     encoded_header = base64url_encode(header)
     encoded_payload = base64url_encode(payload)
     
-    # Crear mensaje para firma
+    # Create message for signature
     message = f"{encoded_header}.{encoded_payload}"
-    
-    # Crear firma HMAC-SHA256
+
+    # Create HMAC-SHA256 signature
     secret = "a1B2c3D4e5F6g7H8i9J0kLmNoPqRsTuVwXyZ1234567890==!"
     signature = hmac.new(
         secret.encode('utf-8'),
@@ -58,7 +58,7 @@ def create_jwt_manual():
     
     encoded_signature = base64url_encode(signature)
     
-    # JWT completo
+    # JWT token
     jwt_token = f"{message}.{encoded_signature}"
     
     return jwt_token, payload
@@ -70,27 +70,27 @@ def main():
     try:
         token, payload = create_jwt_manual()
         
-        print("✅ JWT generado exitosamente!")
-        print(f"\n📋 Payload del token:")
+        print("✅ JWT successfully generated!")
+        print(f"\n📋 Token payload:")
         print(json.dumps(payload, indent=2))
-        
-        print(f"\n🎫 Token JWT completo:")
+
+        print(f"\n🎫 Complete JWT token:")
         print(token)
-        
-        print(f"\n📝 Para usar como Authorization header:")
+
+        print(f"\n📝 To use as Authorization header:")
         print(f"Bearer {token}")
-        
-        print(f"\n🧪 Comando curl de prueba:")
+
+        print(f"\n🧪 Test curl command:")
         print(f'curl -X POST "http://localhost:8000/api/v1/agent/permissions" \\')
         print(f'  -H "Authorization: Bearer {token}"')
-        
-        print(f"\n💡 Este token buscará permisos para el usuario: 'jperez'")
-        print(f"⏰ Token válido por: 1 hora")
+
+        print(f"\n💡 This token will request permissions for the user: 'jperez'")
+        print(f"⏰ Token valid for: 1 hour")
         
         return token
         
     except Exception as e:
-        print(f"❌ Error generando JWT: {e}")
+        print(f"❌ Error generating JWT: {e}")
         return None
 
 if __name__ == "__main__":

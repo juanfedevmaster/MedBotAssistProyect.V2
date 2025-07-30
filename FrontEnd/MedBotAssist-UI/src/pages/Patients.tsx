@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PatientInfoResponseDto } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import ApiService from '../services/apiService';
+import TokenManager from '../utils/tokenManager';
 
 interface PatientsProps {
   doctorId: string | number | null;
@@ -48,7 +49,7 @@ const Patients: React.FC<PatientsProps> = ({ doctorId, username }) => {
                          patient.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          patient.patientId.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // Por ahora no tenemos filtro de estado en el DTO, así que ignoramos statusFilter
+    // For now we don't have status filter in DTO, so we ignore statusFilter
     return matchesSearch;
   });
 
@@ -57,9 +58,7 @@ const Patients: React.FC<PatientsProps> = ({ doctorId, username }) => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('doctorId');
-    localStorage.removeItem('username');
+    TokenManager.clearSessionData(); // Usar clearSessionData para mantener conversation_id
     navigate('/');
   };
 
@@ -93,7 +92,7 @@ const Patients: React.FC<PatientsProps> = ({ doctorId, username }) => {
           <span className="navbar-toggler-icon"></span>
         </button>
         <div className="collapse navbar-collapse" id="navbarMenu">
-          {/* Menu de navegación */}
+          {/* Navigation menu */}
           <ul className="navbar-nav me-auto">
             <li className="nav-item">
               <button
@@ -205,7 +204,7 @@ const Patients: React.FC<PatientsProps> = ({ doctorId, username }) => {
                 </div>
               </div>
 
-              {/* Barra de búsqueda */}
+              {/* Search bar */}
               <div className="row mb-4">
                 <div className="col-md-6">
                   <div className="input-group">
@@ -240,7 +239,7 @@ const Patients: React.FC<PatientsProps> = ({ doctorId, username }) => {
                 </div>
               </div>
 
-              {/* Estadísticas */}
+              {/* Statistics */}
               {!loading && !error && (
                 <div className="row mb-3">
                   <div className="col-12">
@@ -348,7 +347,7 @@ const Patients: React.FC<PatientsProps> = ({ doctorId, username }) => {
                 </table>
               </div>
 
-              {/* Información del doctor */}
+              {/* Doctor information */}
               <div className="mt-4 p-3 bg-light rounded">
                 <small className="text-muted">
                   <i className="bi bi-info-circle me-1"></i>
