@@ -1,8 +1,6 @@
 # test_modular_structure.py
 
 import unittest
-
-from httpx import patch
 from app.agents.tools import (
     ALL_TOOLS,
     search_patients,
@@ -69,6 +67,15 @@ class TestModularStructure(unittest.TestCase):
                     any(kw in tool.description for kw in ["UseAgent", "ViewPatients", "ManagePatients"]),
                     f"{tool.name} mentions permission but lacks specific keyword"
                 )
+
+    def test_medical_agent_tool_access(self):
+        agent = MedicalQueryAgent()
+        self.assertIsNotNone(agent.agent_executor)
+        tools = agent.get_available_tools()
+        self.assertIsInstance(tools, list)
+        self.assertGreater(len(tools), 0)
+        for tool_info in tools[:3]:
+            self.assertIn("name", tool_info)
 
     def test_permission_validators_return_format(self):
         has_view, msg_view = validate_patient_view_permissions()
