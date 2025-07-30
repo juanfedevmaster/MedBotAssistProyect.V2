@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { API_ENDPOINTS } from '../config/endpoints';
 import ApiService from '../services/apiService';
 import TokenManager from '../utils/tokenManager';
@@ -30,13 +31,17 @@ interface ChatHistoryItem {
 }
 
 const FloatingChat: React.FC = () => {
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string>('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Check if we're on login or register pages
+  const isOnAuthPage = location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/';
 
   // Generate a unique conversation ID
   const generateConversationId = () => {
@@ -206,33 +211,54 @@ const FloatingChat: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Inicializar conversation ID al montar el componente
+  // Initialize conversation ID when component mounts and check authentication
   useEffect(() => {
     const initializeChat = async () => {
+      console.log('=== INITIALIZING CHAT ===');
+      console.log('Current path:', location.pathname);
+      console.log('Is on auth page:', isOnAuthPage);
+      
+      // Only proceed if not on authentication pages
+      if (isOnAuthPage) {
+        console.log('On authentication page, skipping chat initialization');
+        setIsAuthenticated(false);
+        return;
+      }
+      
       const existingConvId = TokenManager.getConversationId();
       const token = TokenManager.getToken();
+      const username = TokenManager.getUsername();
+      const doctorId = TokenManager.getDoctorId();
       
-      console.log('Initializing chat - ConvID:', existingConvId, 'Token:', !!token);
+      console.log('Auth check details:', {
+        token: token ? `${token.substring(0, 10)}...` : 'null',
+        tokenExists: !!token,
+        username: username || 'null',
+        doctorId: doctorId || 'null',
+        conversationId: existingConvId || 'null'
+      });
       
-      // Update authentication state
-      setIsAuthenticated(!!token);
+      // Simple authentication check - require token and username
+      const isUserAuthenticated = !!(token && username);
+      console.log('Authentication result:', isUserAuthenticated);
       
-      if (existingConvId) {
+      setIsAuthenticated(isUserAuthenticated);
+      
+      if (isUserAuthenticated && existingConvId) {
         setConversationId(existingConvId);
-        // If there's token and conversation_id, load history
-        if (token) {
-          console.log('Loading history because token and conversation_id exist');
-          await loadChatHistory();
-        }
-      } else {
-        console.log('Generating new conversation_id');
+        console.log('Loading history because user is authenticated and conversation_id exists');
+        await loadChatHistory();
+      } else if (isUserAuthenticated) {
+        console.log('User authenticated but no conversation_id, generating new one');
         const newConvId = generateConversationId();
         setConversationId(newConvId);
+      } else {
+        console.log('User not authenticated, chat will be hidden');
       }
     };
 
     initializeChat();
-  }, [loadChatHistory]);
+  }, [loadChatHistory, location.pathname, isOnAuthPage]);
 
   // Auto scroll to end of messages
   useEffect(() => {
@@ -416,20 +442,29 @@ const FloatingChat: React.FC = () => {
     return formattedDateTime;
   };
 
+  console.log('=== RENDER CHECK ===');
+  console.log('Current path:', location.pathname);
+  console.log('Is on auth page:', isOnAuthPage);
+  console.log('isAuthenticated:', isAuthenticated);
+  console.log('Will show chat:', !isOnAuthPage && isAuthenticated);
+
+  // Don't render chat on login/register pages or if not authenticated
+  if (isOnAuthPage || !isAuthenticated) {
+    console.log('Chat hidden - on auth page or not authenticated');
+    return null;
+  }
+
   return (
     <>
-      {/* Only show chat if user is authenticated */}
-      {isAuthenticated && (
-        <>
-          {/* Floating button */}
-          <div
-            className="position-fixed"
-            style={{
-              bottom: '20px',
-              right: '20px',
-              zIndex: 1000,
-            }}
-          >
+      {/* Floating button */}
+      <div
+        className="position-fixed"
+        style={{
+          bottom: '20px',
+          right: '20px',
+          zIndex: 1000,
+        }}
+      >
         <button
           className="btn btn-primary rounded-circle shadow-lg d-flex align-items-center justify-content-center"
           style={{
@@ -587,8 +622,6 @@ const FloatingChat: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
-        </>
       )}
     </>
   );
