@@ -37,7 +37,7 @@ jobs:
       - name: Zip backend folder for deployment
         run: |
           cd BackEnd/MedBotAssist.BotOpenIA
-          zip -r ../../medbotopenia.zip .
+          zip -r ../../medbotopenia.zip *
       
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
