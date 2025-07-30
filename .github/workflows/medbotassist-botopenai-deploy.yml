@@ -46,8 +46,12 @@ jobs:
           cd BackEnd/MedBotAssist.BotOpenIA
           zip -r ../../medbotopenia.zip .
 
-      - name: Check for startup.sh in ZIP
-        run: unzip -l medbotopenia.zip | grep -i startup || echo "startup.sh NOT FOUND in ZIP"
+      - name: Verify ZIP integrity and size
+        run: |
+          echo "ZIP file size:"
+          ls -lh medbotopenia.zip
+          echo "Testing ZIP integrity:"
+          unzip -t medbotopenia.zip
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
