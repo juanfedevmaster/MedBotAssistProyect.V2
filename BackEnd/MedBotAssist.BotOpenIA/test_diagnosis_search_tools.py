@@ -1,104 +1,58 @@
-"""
-Test script for the new diagnosis search tools.
-"""
+import unittest
+from unittest.mock import patch, MagicMock
 
-import sys
-sys.path.append('.')
+from app.agents.tools import diagnosis_search_tools
 
-def test_diagnosis_search_tools():
-    """Test the diagnosis search tools"""
-    try:
-        from app.agents.tools.diagnosis_search_tools import (
-            search_patients_by_diagnosis_impl,
-            get_patient_names_by_diagnosis_impl
-        )
-        
-        # Create test permission context
-        class MockPermissionContext:
-            def __init__(self):
-                self.permissions = ['read_patients', 'read_medical_history']
-                self.user_id = 'test_user'
-                self.hospital_id = 'test_hospital'
-        
-        permission_context = MockPermissionContext()
-        
-        print("🧪 Testing diagnosis search tools...")
-        print("=" * 60)
-        
-        # Test 1: Complete patient search by diagnosis
-        print("\n1️⃣ Complete search by diagnosis (Hypertension):")
-        print("-" * 50)
-        result1 = search_patients_by_diagnosis_impl(
-            diagnosis_keyword='Hipertensión',
-            permission_context=permission_context
-        )
-        print(result1)
-        
-        # Test 2: Get only names by diagnosis
-        print("\n2️⃣ Patient names by diagnosis (Hypertension):")
-        print("-" * 50)
-        result2 = get_patient_names_by_diagnosis_impl(
-            diagnosis_keyword='Hipertensión',
-            permission_context=permission_context
-        )
-        print(result2)
-        
-        # Test 3: Search for non-existent diagnosis
-        print("\n3️⃣ Search for non-existent diagnosis (Flu):")
-        print("-" * 50)
-        result3 = get_patient_names_by_diagnosis_impl(
-            diagnosis_keyword='Gripe',
-            permission_context=permission_context
-        )
-        print(result3)
-        
-        print("\n✅ Tests completed successfully!")
-        print("📊 Diagnosis search tools are working.")
-        
-    except Exception as e:
-        print(f"❌ Error in tests: {str(e)}")
-        import traceback
-        traceback.print_exc()
+class TestDiagnosisSearchTools(unittest.TestCase):
 
-def test_tools_integration():
-    """Test the tools integration in the system"""
-    try:
+    def setUp(self):
+        self.permission_context = MagicMock()
+        self.permission_context.permissions = ['read_patients', 'read_medical_history']
+        self.permission_context.user_id = 'mock_user'
+        self.permission_context.hospital_id = 'mock_hospital'
+
+    @patch('app.agents.tools.diagnosis_search_tools.search_patients_by_diagnosis_impl')
+    def test_search_patients_by_diagnosis(self, mock_search):
+        mock_search.return_value = "Found 3 patients with Hypertension: Carlos Sánchez, Maria Lopez, Juan Pérez"
+        
+        result = diagnosis_search_tools.search_patients_by_diagnosis_impl(
+            diagnosis_keyword='Hypertension',
+            permission_context=self.permission_context
+        )
+
+        self.assertIsInstance(result, str)
+        self.assertIn('Hypertension', result)
+        self.assertIn('Carlos Sánchez', result)
+
+    @patch('app.agents.tools.diagnosis_search_tools.get_patient_names_by_diagnosis_impl')
+    def test_get_patient_names_by_diagnosis(self, mock_get_names):
+        mock_get_names.return_value = "Carlos Sánchez, Maria Lopez"
+        
+        result = diagnosis_search_tools.get_patient_names_by_diagnosis_impl(
+            diagnosis_keyword='Hypertension',
+            permission_context=self.permission_context
+        )
+
+        self.assertIsInstance(result, str)
+        self.assertIn('Carlos Sánchez', result)
+
+    @patch('app.agents.tools.diagnosis_search_tools.get_patient_names_by_diagnosis_impl')
+    def test_get_patient_names_by_invalid_diagnosis(self, mock_get_names):
+        mock_get_names.return_value = "No patients found with diagnosis 'Flu'"
+        
+        result = diagnosis_search_tools.get_patient_names_by_diagnosis_impl(
+            diagnosis_keyword='Flu',
+            permission_context=self.permission_context
+        )
+
+        self.assertIsInstance(result, str)
+        self.assertIn('no patients', result.lower())
+
+    def test_tools_are_integrated(self):
         from app.agents.tools import ALL_TOOLS
-        
-        print("\n🔧 Verifying tools integration...")
-        print("=" * 60)
-        
-        # Search for new tools in the list
-        diagnosis_tools = [
-            'search_patients_by_diagnosis',
-            'get_patient_names_by_diagnosis'
-        ]
-        
         tool_names = [tool.name for tool in ALL_TOOLS]
-        
-        print(f"📋 Total available tools: {len(ALL_TOOLS)}")
-        print(f"🔍 Tools found: {tool_names}")
-        
-        for tool_name in diagnosis_tools:
-            if tool_name in tool_names:
-                print(f"✅ {tool_name} - Integrated correctly")
-            else:
-                print(f"❌ {tool_name} - Not found in ALL_TOOLS")
-        
-        print(f"\n📊 System updated with {len(ALL_TOOLS)} total tools")
-        
-    except Exception as e:
-        print(f"❌ Error verifying integration: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        self.assertIn('search_patients_by_diagnosis', tool_names)
+        self.assertIn('get_patient_names_by_diagnosis', tool_names)
 
-if __name__ == "__main__":
-    print("🚀 Starting diagnosis tools tests...")
-    
-    # Test the tools
-    test_diagnosis_search_tools()
-    
-    # Test the integration
-    test_tools_integration()
-    
-    print("\n🎉 Tests finished!")
+if __name__ == '__main__':
+    unittest.main()
