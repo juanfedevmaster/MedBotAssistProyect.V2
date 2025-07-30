@@ -71,6 +71,11 @@ const Home: React.FC<HomeProps> = ({ doctorId, username }) => {
     return appointments.filter(apt => {
       const aptDate = new Date(apt.appointmentDate).toISOString().split('T')[0];
       return aptDate === dateStr;
+    }).sort((a, b) => {
+      // Sort appointments chronologically by time (earliest first)
+      const timeA = a.appointmentTime || '00:00';
+      const timeB = b.appointmentTime || '00:00';
+      return timeA.localeCompare(timeB);
     });
   };
 
@@ -86,8 +91,14 @@ const Home: React.FC<HomeProps> = ({ doctorId, username }) => {
   };
 
   const handleAttendAppointment = (appointmentId: number) => {
-    // TODO: Implement navigation to appointment page
-    console.log('Attending appointment:', appointmentId);
+    // Find the appointment to get the patientId
+    const appointment = appointments.find(apt => apt.appointmentId === appointmentId);
+    if (appointment) {
+      // Navigate to patient notes page with appointmentId parameter
+      navigate(`/patients/notes/${appointment.patientId}?appointmentId=${appointmentId}`);
+    } else {
+      console.error('Appointment not found:', appointmentId);
+    }
   };
 
   const handleLogout = () => {
@@ -303,20 +314,16 @@ const Home: React.FC<HomeProps> = ({ doctorId, username }) => {
                                     <div className="fw-bold text-dark mb-1" style={{ fontSize: '0.8rem' }}>
                                       {apt.patientName}
                                     </div>
-                                    {apt.notes && (
-                                      <div className="text-muted small mb-2">
-                                        <i className="bi bi-note-text me-1"></i>
-                                        {apt.notes}
-                                      </div>
+                                    {isToday && apt.status.toLowerCase() === 'confirmed' && (
+                                      <button
+                                        className="btn btn-sm btn-outline-primary w-100"
+                                        onClick={() => handleAttendAppointment(apt.appointmentId)}
+                                        style={{ fontSize: '0.75rem' }}
+                                      >
+                                        <i className="bi bi-person-check me-1"></i>
+                                        Attend
+                                      </button>
                                     )}
-                                    <button
-                                      className="btn btn-sm btn-outline-primary w-100"
-                                      onClick={() => handleAttendAppointment(apt.appointmentId)}
-                                      style={{ fontSize: '0.75rem' }}
-                                    >
-                                      <i className="bi bi-person-check me-1"></i>
-                                      Attend
-                                    </button>
                                   </div>
                                 </div>
                               ))

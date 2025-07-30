@@ -43,7 +43,16 @@ export class ApiService {
       body: JSON.stringify(credentials),
     });
 
-    return this.handleResponse(response);
+    // Handle login errors differently - don't redirect on 401
+    if (response.status === 401) {
+      throw new Error('Invalid username or password. Please check your credentials and try again.');
+    }
+
+    if (!response.ok) {
+      throw new Error(`Login failed. Please try again.`);
+    }
+
+    return response;
   }
 
   static async register(userData: any) {
@@ -99,23 +108,51 @@ export class ApiService {
   }
 
   static async createAppointment(appointmentData: any) {
-    return this.authenticatedFetch(API_ENDPOINTS.APPOINTMENTS_CREATE, {
+    const headers = {
+      ...TokenManager.getAuthHeaders(),
+      'Content-Type': 'application/json',
+    };
+
+    const response = await fetch(API_ENDPOINTS.APPOINTMENTS_CREATE, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(appointmentData),
     });
+
+    // Don't handle 409 here - let the calling component handle it
+    if (response.status === 401) {
+      TokenManager.clearAuthData();
+      window.location.href = '/';
+      throw new Error('Session expired. Please login again.');
+    }
+
+    // Return response as-is for 409 and other status codes
+    // Let the calling component handle them appropriately
+    return response;
   }
 
   static async updateAppointment(appointmentId: string | number, appointmentData: any) {
-    return this.authenticatedFetch(API_ENDPOINTS.APPOINTMENTS_UPDATE(appointmentId), {
+    const headers = {
+      ...TokenManager.getAuthHeaders(),
+      'Content-Type': 'application/json',
+    };
+
+    const response = await fetch(API_ENDPOINTS.APPOINTMENTS_UPDATE(appointmentId), {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(appointmentData),
     });
+
+    // Don't handle 409 here - let the calling component handle it
+    if (response.status === 401) {
+      TokenManager.clearAuthData();
+      window.location.href = '/';
+      throw new Error('Session expired. Please login again.');
+    }
+
+    // Return response as-is for 409 and other status codes
+    // Let the calling component handle them appropriately
+    return response;
   }
 
   // Method to check if the token is still valid

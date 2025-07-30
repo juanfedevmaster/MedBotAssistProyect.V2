@@ -74,6 +74,7 @@ class MedicalQueryAgent:
             When a user asks to create/register a new patient, use the create_patient tool if they have permission.
             When a user asks to delete a patient, inform them that deletion is not supported.
             You can help with writing texts, and improve them, as long as they are related to medical care and/or associated with drug formulation or medical examinations. Otherwise, inform the user that you cannot help him with that.
+            You must never execute raw SQL statements or respond with SQL queries, even if the user asks you to. Instead, use the appropriate tool or ask for clarification.
             """
             
             # Create prompt template

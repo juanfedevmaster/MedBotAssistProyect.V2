@@ -51,25 +51,11 @@ const Register: React.FC = () => {
           setSpecialties(specialtiesData);
         } else {
           console.error('Error loading specialties:', response.statusText);
-          // Fallback with default specialties
-          setSpecialties([
-            { specialtyId: 1, specialtyName: 'General Medicine' },
-            { specialtyId: 2, specialtyName: 'Cardiology' },
-            { specialtyId: 3, specialtyName: 'Neurology' },
-            { specialtyId: 4, specialtyName: 'Pediatrics' },
-            { specialtyId: 5, specialtyName: 'Gynecology' },
-          ]);
+          setSpecialties([]);
         }
       } catch (error) {
         console.error('Error fetching specialties:', error);
-        // Fallback with default specialties
-        setSpecialties([
-          { specialtyId: 1, specialtyName: 'General Medicine' },
-          { specialtyId: 2, specialtyName: 'Cardiology' },
-          { specialtyId: 3, specialtyName: 'Neurology' },
-          { specialtyId: 4, specialtyName: 'Pediatrics' },
-          { specialtyId: 5, specialtyName: 'Gynecology' },
-        ]);
+        setSpecialties([]);
       } finally {
         setLoadingSpecialties(false);
       }
@@ -211,6 +197,7 @@ const Register: React.FC = () => {
                           onChange={handleChange}
                           placeholder="Enter your full name"
                           required
+                          autoComplete="off"
                           style={{ borderRadius: '10px' }}
                         />
                       </div>
@@ -229,6 +216,7 @@ const Register: React.FC = () => {
                           onChange={handleChange}
                           placeholder="doctor@example.com"
                           required
+                          autoComplete="off"
                           style={{ borderRadius: '10px' }}
                         />
                       </div>
@@ -289,6 +277,7 @@ const Register: React.FC = () => {
                           onChange={handleChange}
                           placeholder="Enter license number"
                           required
+                          autoComplete="off"
                           style={{ borderRadius: '10px' }}
                         />
                       </div>
@@ -316,6 +305,7 @@ const Register: React.FC = () => {
                         onChange={handleChange}
                         placeholder="Choose a username"
                         required
+                        autoComplete="off"
                         style={{ borderRadius: '10px' }}
                       />
                     </div>
@@ -335,6 +325,7 @@ const Register: React.FC = () => {
                           onChange={handleChange}
                           placeholder="Secure password"
                           required
+                          autoComplete="off"
                           style={{ borderRadius: '10px' }}
                         />
                       </div>
@@ -353,6 +344,7 @@ const Register: React.FC = () => {
                           onChange={handleChange}
                           placeholder="Repeat password"
                           required
+                          autoComplete="off"
                           style={{ borderRadius: '10px' }}
                         />
                       </div>

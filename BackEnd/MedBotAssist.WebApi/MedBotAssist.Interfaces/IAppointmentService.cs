@@ -15,5 +15,6 @@ namespace MedBotAssist.Interfaces
 
         Task<IEnumerable<Appointment>> GetByDoctorIdAsync(int doctorId);
         Task<IEnumerable<Appointment>> GetByDoctorIdAndDateAsync(int doctorId, DateOnly date);
+        Task<Appointment> ValidateAppoinmentExist(Appointment appointment);
     }
 }

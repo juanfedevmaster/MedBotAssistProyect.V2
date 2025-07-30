@@ -31,6 +31,23 @@ namespace MedBotAssist.WebApi.Controllers
         public async Task<ActionResult<AppointmentDto>> Create([FromBody] AppointmentDto appointmentDto)
         {
             var entity = AppointmentMapper.ToEntity(appointmentDto);
+
+            var existAppointment = await _appointmentService.ValidateAppoinmentExist(entity);
+            if (existAppointment != null)
+            {
+                return Conflict(new
+                {
+                    message = "Doctor already has an appointment scheduled at this time",
+                    conflictingAppointment = new
+                    {
+                        appointmentId = existAppointment.AppointmentId,
+                        patientName = existAppointment.Patient.FullName,
+                        appointmentTime = existAppointment.AppointmentTime,
+                        appointmentDate = existAppointment.AppointmentDate
+                    }
+                });
+            }
+
             var created = await _appointmentService.CreateAsync(entity);
             var result = AppointmentMapper.ToDto(created);
             return CreatedAtAction(nameof(GetById), new { appointmentId = result.AppointmentId }, result);

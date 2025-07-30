@@ -35,8 +35,14 @@ namespace MedBotAssist.WebApi.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterRequest request)
         {
-            var result = await _authOrchestrationService.RegisterAsync(request);
-            return Ok(result);
+            try
+            {
+                var result = await _authOrchestrationService.RegisterAsync(request);
+                return Ok(result);
+            }
+            catch (Exception exe) {
+                return StatusCode(StatusCodes.Status500InternalServerError, "Failed to create user.");
+            }
         }
     }
 }
