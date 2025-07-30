@@ -26,6 +26,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Ensure startup.sh is executable
+        run: chmod +x BackEnd/MedBotAssist.BotOpenIA/startup.sh
+      
       - name: Zip backend folder for deployment
         run: |
           cd BackEnd/MedBotAssist.BotOpenIA
