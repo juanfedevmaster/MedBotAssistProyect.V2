@@ -32,10 +32,13 @@ jobs:
       - name: Verify startup.sh exists
         run: ls -la BackEnd/MedBotAssist.BotOpenIA/startup.sh
 
+      - name: List all files in directory
+        run: ls -la BackEnd/MedBotAssist.BotOpenIA/
+
       - name: Zip backend folder for deployment
         run: |
           cd BackEnd/MedBotAssist.BotOpenIA
-          zip -r ../../medbotopenia.zip * .[^.]*
+          zip -r ../../medbotopenia.zip .
 
       - name: List ZIP contents
         run: unzip -l medbotopenia.zip | head -20
