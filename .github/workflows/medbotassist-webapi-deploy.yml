@@ -20,9 +20,10 @@ jobs:
 
       - name: Reemplazar variables en appsettings.json
         run: |
-           sed -i 's|"MedBotAssistConnection": ""|"MedBotAssistConnection": "${{ secrets.DB_CONNECTION_STRING }}"|' appsettings.json
-           sed -i 's|"Secret": ""|"Secret": "${{ secrets.JWT_SECRET }}"|' appsettings.json
-           sed -i 's|"accountKey": ""|"accountKey": "${{ secrets.AZURE_STORAGE_KEY }}"|' appsettings.json
+           sed -i 's|"MedBotAssistConnection": ""|"MedBotAssistConnection": "${{ secrets.DB_CONNECTION_STRING }}"|' BackEnd/MedBotAssist.WebApi/appsettings.json
+           sed -i 's|"Secret": ""|"Secret": "${{ secrets.JWT_SECRET }}"|' BackEnd/MedBotAssist.WebApi/appsettings.json
+           sed -i 's|"accountKey": ""|"accountKey": "${{ secrets.AZURE_STORAGE_KEY }}"|' BackEnd/MedBotAssist.WebApi/appsettings.json
+
       
       - name: Restore dependencies
         run: dotnet restore BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi.sln

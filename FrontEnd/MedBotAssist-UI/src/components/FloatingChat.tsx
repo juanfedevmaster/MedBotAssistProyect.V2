@@ -68,7 +68,6 @@ const FloatingChat: React.FC = () => {
       // - Server saved: 30/07/2025 05:16 UTC (correct date but incorrect time)
       // - Correction needed: Subtract 5 hours to return to 29/07/2025 19:16 local
       
-      const originalHour = date.getUTCHours();
       
       // Subtract 5 hours to correct from 05:16 UTC to 00:16 UTC, 
       // which in your GMT-5 timezone will be 19:16 of the previous day
