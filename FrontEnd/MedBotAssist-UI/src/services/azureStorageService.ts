@@ -26,23 +26,7 @@ class AzureStorageService {
     return `${baseUrl}/${containerName}`;
   }
 
-  // Método para verificar la configuración
-  public verifyConfiguration(): void {
-    console.log('=== Azure Storage Configuration ===');
-    console.log('Base URL:', process.env.REACT_APP_AZURE_STORAGE_URL);
-    console.log('Container:', process.env.REACT_APP_AZURE_CONTAINER_NAME);
-    
-    const token = TokenManager.getToken();
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        console.log('JWT has sasToken claim:', !!payload.sasToken);
-      } catch (error) {
-        // Silent error
-      }
-    }
-    console.log('=== End Configuration ===');
-  }
+
 
   async listBlobs(): Promise<any[]> {
     const sasToken = this.getSasToken();
@@ -95,6 +79,7 @@ class AzureStorageService {
     const url = `${storageUrl}/${file.name}?${sasToken}`;
     
     try {
+      // 1. Upload file to Azure Storage
       const response = await fetch(url, {
         method: 'PUT',
         headers: {
@@ -107,6 +92,59 @@ class AzureStorageService {
       if (!response.ok) {
         throw new Error(`Failed to upload file: ${response.status} ${response.statusText}`);
       }
+
+      // 2. Clear existing vectors
+      await this.clearVectors();
+
+      // 3. Revectorize all files
+      await this.revectorizeAll();
+
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async clearVectors(): Promise<void> {
+    const aiBaseUrl = process.env.REACT_APP_AI_API_BASE_URL;
+    const clearUrl = `${aiBaseUrl}/api/v1/vectorization/clear-vectors`;
+    const token = TokenManager.getToken();
+
+    try {
+      const response = await fetch(clearUrl, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to clear vectors: ${response.status} ${response.statusText}`);
+      }
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async revectorizeAll(): Promise<void> {
+    const aiBaseUrl = process.env.REACT_APP_AI_API_BASE_URL;
+    const revectorizeUrl = `${aiBaseUrl}/api/v1/vectorization/revectorize-all`;
+    const token = TokenManager.getToken();
+
+    try {
+      const response = await fetch(revectorizeUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to revectorize files: ${response.status} ${response.statusText}`);
+      }
+      
+      await response.text();
     } catch (error) {
       throw error;
     }
@@ -121,6 +159,7 @@ class AzureStorageService {
     const url = `${this.getStorageUrl()}/${fileName}?${sasToken}`;
     
     try {
+      // 1. Delete file from Azure Storage
       const response = await fetch(url, {
         method: 'DELETE'
       });
@@ -128,6 +167,13 @@ class AzureStorageService {
       if (!response.ok) {
         throw new Error(`Failed to delete file: ${response.status} ${response.statusText}`);
       }
+
+      // 2. Clear existing vectors
+      await this.clearVectors();
+
+      // 3. Revectorize remaining files
+      await this.revectorizeAll();
+
     } catch (error) {
       throw error;
     }

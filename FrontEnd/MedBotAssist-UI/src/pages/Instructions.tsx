@@ -94,7 +94,6 @@ const Instructions: React.FC<InstructionsProps> = ({ doctorId, username }) => {
       setIsUploadModalOpen(false);
       setSelectedFile(null);
       
-      console.log('File uploaded successfully');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload file');
     } finally {
@@ -135,7 +134,6 @@ const Instructions: React.FC<InstructionsProps> = ({ doctorId, username }) => {
       // Close modal
       setDeleteModalFile(null);
       
-      console.log('File deleted successfully');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete file');
     } finally {
@@ -478,8 +476,13 @@ const Instructions: React.FC<InstructionsProps> = ({ doctorId, username }) => {
                   />
                 </div>
 
+                <div className="alert alert-info">
+                  <i className="bi bi-info-circle me-2"></i>
+                  <strong>Note:</strong> After uploading, the file will be automatically processed and vectorized for AI chat integration. This may take a few moments.
+                </div>
+
                 {selectedFile && (
-                  <div className="alert alert-info">
+                  <div className="alert alert-success">
                     <div className="d-flex align-items-center">
                       <i className={`bi ${getFileIcon(selectedFile.type)} me-2`}></i>
                       <div>
@@ -514,7 +517,7 @@ const Instructions: React.FC<InstructionsProps> = ({ doctorId, username }) => {
                       <span className="spinner-border spinner-border-sm me-2" role="status">
                         <span className="visually-hidden">Uploading...</span>
                       </span>
-                      Uploading...
+                      Uploading & Processing...
                     </>
                   ) : (
                     <>
@@ -559,6 +562,10 @@ const Instructions: React.FC<InstructionsProps> = ({ doctorId, username }) => {
                 <p className="text-danger">
                   <strong>This action cannot be undone!</strong>
                 </p>
+                <div className="alert alert-info">
+                  <i className="bi bi-info-circle me-2"></i>
+                  <small>After deletion, the AI knowledge base will be automatically updated to remove this file's content.</small>
+                </div>
               </div>
               <div className="modal-footer">
                 <button 
@@ -580,7 +587,7 @@ const Instructions: React.FC<InstructionsProps> = ({ doctorId, username }) => {
                       <span className="spinner-border spinner-border-sm me-2" role="status">
                         <span className="visually-hidden">Deleting...</span>
                       </span>
-                      Deleting...
+                      Deleting & Reprocessing...
                     </>
                   ) : (
                     <>
