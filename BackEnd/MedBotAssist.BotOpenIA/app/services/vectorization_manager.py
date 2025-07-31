@@ -61,24 +61,48 @@ class VectorizationManager:
         self.blob_service = BlobService()
         self.openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         
-        # Initialize ChromaDB client with better error handling
+        # Initialize ChromaDB client with environment detection
         try:
             import os
-            # Ensure the directory exists
-            os.makedirs(settings.VECTOR_DB_PATH, exist_ok=True)
             
-            # Initialize persistent client
-            self.chroma_client = chromadb.PersistentClient(
-                path=settings.VECTOR_DB_PATH,
-                settings=ChromaSettings(
-                    anonymized_telemetry=False,
-                    allow_reset=True
+            # Detect if running in Azure App Service
+            is_azure = os.environ.get('WEBSITE_SITE_NAME') is not None
+            
+            if is_azure:
+                # Azure App Service configuration
+                azure_db_path = "/home/site/wwwroot/chroma_db"
+                logger.info(f"Azure environment detected. Using path: {azure_db_path}")
+                
+                # Ensure the directory exists
+                os.makedirs(azure_db_path, exist_ok=True)
+                
+                # Use chromadb.Client with Settings for Azure
+                from chromadb.config import Settings
+                self.chroma_client = chromadb.Client(Settings(
+                    persist_directory=azure_db_path,
+                    anonymized_telemetry=False
+                ))
+                logger.info(f"ChromaDB initialized for Azure App Service at: {azure_db_path}")
+                
+            else:
+                # Local development configuration
+                logger.info(f"Local environment detected. Using path: {settings.VECTOR_DB_PATH}")
+                
+                # Ensure the directory exists
+                os.makedirs(settings.VECTOR_DB_PATH, exist_ok=True)
+                
+                # Use PersistentClient for local development
+                self.chroma_client = chromadb.PersistentClient(
+                    path=settings.VECTOR_DB_PATH,
+                    settings=ChromaSettings(
+                        anonymized_telemetry=False,
+                        allow_reset=True
+                    )
                 )
-            )
-            logger.info(f"ChromaDB initialized successfully with persistent storage at: {settings.VECTOR_DB_PATH}")
+                logger.info(f"ChromaDB initialized for local development at: {settings.VECTOR_DB_PATH}")
             
         except Exception as e:
-            logger.error(f"ChromaDB persistent client initialization failed: {e}")
+            logger.error(f"ChromaDB client initialization failed: {e}")
             logger.error("This will cause vectorization to fail. Check directory permissions and disk space.")
             # Don't fall back to in-memory - this breaks the system
             raise HTTPException(
