@@ -5,6 +5,12 @@ This service handles vectorization of files from Azure Blob Storage using OpenAI
 and ChromaDB for storage and metadata management.
 """
 
+# SQLite fix for Azure App Service BEFORE any other imports
+try:
+    import sqlite_fix
+except ImportError:
+    pass
+
 from typing import List, Dict, Any, Optional, Tuple
 import asyncio
 import logging
