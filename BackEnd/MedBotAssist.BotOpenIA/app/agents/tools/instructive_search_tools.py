@@ -1,6 +1,13 @@
 """
 Tools for searching information in vectorized instructional documents
 """
+
+# SQLite fix for Azure App Service BEFORE any other imports
+try:
+    import sqlite_fix
+except ImportError:
+    pass
+
 import os
 import json
 from typing import List, Dict, Any, Optional, Tuple

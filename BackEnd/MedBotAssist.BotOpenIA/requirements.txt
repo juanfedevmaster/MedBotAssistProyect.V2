@@ -15,6 +15,9 @@ PyJWT==2.8.0
 httpx==0.28.1
 pytest>=7.0.0
 
+# SQLite fix for ChromaDB (MUST be before chromadb)
+pysqlite3-binary>=0.5.0
+
 # Vectorization dependencies
 chromadb>=1.0.15
 PyPDF2==3.0.1

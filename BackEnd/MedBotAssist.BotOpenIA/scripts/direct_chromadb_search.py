@@ -6,6 +6,12 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# SQLite fix for Azure App Service BEFORE ChromaDB imports
+try:
+    import sqlite_fix
+except ImportError:
+    pass
+
 import chromadb
 from chromadb.config import Settings as ChromaSettings
 from app.core.config import settings
