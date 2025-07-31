@@ -17,6 +17,15 @@ jobs:
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '8.0'
+      
+      - run: |
+           echo "$DB_CONNECTION_STRING"
+           echo "$JWT_SECRET"
+           echo "$AZURE_STORAGE_KEY"
+        env:
+           DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+           AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
 
       - name: Replace variables in appsettings.json
         env:
@@ -24,9 +33,9 @@ jobs:
            JWT_SECRET: ${{ secrets.JWT_SECRET }}
            AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
         run: |
-           sed -i "s|\"MedBotAssistConnection\": \"\"|\"MedBotAssistConnection\": \"${DB_CONNECTION_STRING}\"|" BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi/appsettings.json
-           sed -i "s|\"Secret\": \"\"|\"Secret\": \"${JWT_SECRET}\"|" BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi/appsettings.json
-           sed -i "s|\"accountKey\": \"\"|\"accountKey\": \"${AZURE_STORAGE_KEY}\"|" BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi/appsettings.json
+           sed -i 's|"MedBotAssistConnection": ""|"MedBotAssistConnection": "'"$DB_CONNECTION_STRING"'"|g' BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi/appsettings.json
+           sed -i 's|"Secret": ""|"Secret": "'"$JWT_SECRET"'"|g' BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi/appsettings.json
+           sed -i 's|"accountKey": ""|"accountKey": "'"$AZURE_STORAGE_KEY"'"|g' BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi/appsettings.json
                  
       - name: Restore dependencies
         run: dotnet restore BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi.sln
