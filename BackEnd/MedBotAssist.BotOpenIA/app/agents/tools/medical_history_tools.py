@@ -42,32 +42,23 @@ def get_patient_medical_history(identification_number: str) -> str:
         
         query = text("""
             SELECT 
-                -- Información del paciente
                 p.PatientId,
                 p.FullName AS PatientName,
                 p.IdentificationNumber,
                 p.BirthDate,
                 p.Phone,
                 p.Email,
-
-                -- Información de las citas
                 a.AppointmentId,
                 a.AppointmentDate,
                 a.AppointmentTime,
                 a.Status,
                 a.Notes AS AppointmentNotes,
-
-                -- Información del doctor
                 d.DoctorId,
                 u.FullName AS DoctorName,
                 s.SpecialtyName AS DoctorSpecialty,
-
-                -- Nota médica
                 mn.NoteId,
                 mn.CreationDate AS NoteDate,
                 mn.[FreeText] AS MedicalNote,
-
-                -- Resumen clínico generado por IA
                 cs.SummaryId,
                 cs.Diagnosis,
                 cs.Treatment,

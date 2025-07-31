@@ -226,6 +226,16 @@ const PatientForm: React.FC<PatientFormProps> = ({ doctorId, username }) => {
                 Appointments
               </button>
             </li>
+            <li className="nav-item">
+              <button
+                className="btn nav-link text-white fw-bold"
+                onClick={() => navigate('/instructions')}
+                style={{ border: 'none', background: 'transparent' }}
+              >
+                <i className="bi bi-file-earmark-text me-2"></i>
+                Instructions
+              </button>
+            </li>
           </ul>
           
           {/* Usuario dropdown */}

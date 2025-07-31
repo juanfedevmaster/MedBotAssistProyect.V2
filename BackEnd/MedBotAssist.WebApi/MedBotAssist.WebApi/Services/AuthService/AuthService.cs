@@ -1,4 +1,6 @@
-﻿using MedBotAssist.Interfaces;
+﻿using Azure.Storage;
+using Azure.Storage.Sas;
+using MedBotAssist.Interfaces;
 using MedBotAssist.Models.DTOs;
 using MedBotAssist.Models.Models;
 using MedBotAssist.Persistance.Context;
@@ -129,6 +131,24 @@ namespace MedBotAssist.WebApi.Services.AuthService
                     new Claim("role", user.Role),
                     new Claim("userid", user.UserId.ToString())
                 };
+
+            var blobSasBuilder = new BlobSasBuilder
+            {
+                BlobContainerName = _config["StorageAccount:containerName"],
+                Resource = "c",
+                ExpiresOn = DateTimeOffset.UtcNow.AddMinutes(60)
+            };
+
+            blobSasBuilder.SetPermissions(
+                BlobContainerSasPermissions.Write |
+                BlobContainerSasPermissions.Create |
+                BlobContainerSasPermissions.Read |
+                BlobContainerSasPermissions.List |
+                BlobContainerSasPermissions.Delete
+            );
+            var sasToken = blobSasBuilder.ToSasQueryParameters(new StorageSharedKeyCredential(_config["StorageAccount:accountName"], _config["StorageAccount:accountKey"])).ToString();
+
+            claims.Add(new Claim("sasToken", sasToken));
 
             claims.AddRange(permissions.Select(p => new Claim("permission", p)));
 

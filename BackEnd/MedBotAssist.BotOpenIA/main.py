@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import agent
+from app.api.routes import agent, blob, vectorization
 import uvicorn
 
 # Create FastAPI instance
@@ -28,6 +28,20 @@ app.include_router(
     tags=["agent"]
 )
 
+# Include blob storage routes
+app.include_router(
+    blob.router,
+    prefix="/api/v1/blob",
+    tags=["blob-storage"]
+)
+
+# Include vectorization routes
+app.include_router(
+    vectorization.router,
+    prefix="/api/v1/vectorization",
+    tags=["vectorization"]
+)
+
 @app.get("/")
 async def root():
     return {"message": "MedBot Assistant API is running", "status": "healthy"}
@@ -37,4 +51,11 @@ async def health_check():
     return {"status": "healthy", "message": "API is operational"}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # For development - includes hot reload and better logging
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=8000,
+        reload=True,
+        log_level="info"
+    )

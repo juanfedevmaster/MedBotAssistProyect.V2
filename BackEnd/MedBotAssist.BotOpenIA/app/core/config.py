@@ -36,6 +36,16 @@ class Settings(BaseSettings):
     # External Backend API Configuration
     EXTERNAL_BACKEND_API_URL: str = os.getenv("EXTERNAL_BACKEND_API_URL", "http://localhost:5098/api/")
     
+    # Azure Blob Storage Configuration
+    BLOB_STORAGE_BASE_URL: str = os.getenv("BLOB_STORAGE_BASE_URL", "https://strmedbotassist.blob.core.windows.net")
+    BLOB_CONTAINER_NAME: str = os.getenv("BLOB_CONTAINER_NAME", "instructions-files")
+    
+    # Vectorization Configuration
+    VECTOR_DB_PATH: str = os.getenv("VECTOR_DB_PATH", "./chroma_db")
+    DEFAULT_COLLECTION_NAME: str = os.getenv("DEFAULT_COLLECTION_NAME", "medical_documents")
+    CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "200"))
+    CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "120"))
+    
     # Logging Configuration
     LOG_LEVEL: str = "INFO"
     
