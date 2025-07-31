@@ -7,6 +7,7 @@ import Patients from './pages/Patients';
 import PatientForm from './pages/PatientForm';
 import PatientNotes from './pages/PatientNotes';
 import Appointments from './pages/Appointments';
+import Instructions from './pages/Instructions';
 import Register from './modules/register/Register';
 import FloatingChat from './components/FloatingChat';
 import TokenManager from './utils/tokenManager';
@@ -77,6 +78,10 @@ const App = () => {
         <Route
           path="/appointments"
           element={isAuthenticated ? <Appointments doctorId={doctorId} username={username} /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/instructions"
+          element={isAuthenticated ? <Instructions doctorId={doctorId} username={username} /> : <Navigate to="/login" replace />}
         />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

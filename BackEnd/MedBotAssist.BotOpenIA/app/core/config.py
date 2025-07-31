@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     # External Backend API Configuration
     EXTERNAL_BACKEND_API_URL: str = os.getenv("EXTERNAL_BACKEND_API_URL", "http://localhost:5098/api/")
     
+    # Azure Blob Storage Configuration
+    BLOB_STORAGE_BASE_URL: str = os.getenv("BLOB_STORAGE_BASE_URL", "https://strmedbotassist.blob.core.windows.net")
+    BLOB_CONTAINER_NAME: str = os.getenv("BLOB_CONTAINER_NAME", "instructions-files")
+    
     # Logging Configuration
     LOG_LEVEL: str = "INFO"
     

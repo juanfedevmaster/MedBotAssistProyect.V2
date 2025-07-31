@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import agent
+from app.api.routes import agent, blob
 import uvicorn
 
 # Create FastAPI instance
@@ -26,6 +26,13 @@ app.include_router(
     agent.router,
     prefix="/api/v1/agent",
     tags=["agent"]
+)
+
+# Include blob storage routes
+app.include_router(
+    blob.router,
+    prefix="/api/v1/blob",
+    tags=["blob-storage"]
 )
 
 @app.get("/")

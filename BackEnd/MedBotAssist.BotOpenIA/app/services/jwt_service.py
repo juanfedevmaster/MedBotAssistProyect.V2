@@ -170,6 +170,26 @@ class JWTService:
                 detail="Error retrieving user permissions"
             )
     
+    def extract_sas_token(self, token: str) -> Optional[str]:
+        """
+        Extracts the SAS token from the "sasToken" claim of the JWT.
+        
+        Arguments:
+            token: JWT token
+            
+        Returns:
+            SAS token for blob storage access, or None if not present
+        """
+        payload = self.decode_token(token)
+        sas_token = payload.get("sasToken")
+        
+        if sas_token:
+            logger.info("SAS token found in JWT claim")
+        else:
+            logger.warning("SAS token not found in JWT claim")
+        
+        return sas_token
+    
     def get_user_permission_names(self, token: str) -> List[str]:
         """
         Obtains only the names of the user's permissions (for easy verification).

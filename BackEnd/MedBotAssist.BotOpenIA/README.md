@@ -71,6 +71,12 @@ MedBotAssist.BotOpenIA/
    JWT_EXPIRATION_MINUTES=60
    ```
 
+6. **Configure Azure Blob Storage:**
+   ```
+   BLOB_STORAGE_BASE_URL=https://strmedbotassist.blob.core.windows.net
+   BLOB_CONTAINER_NAME=instructions-files
+   ```
+
 ## Installation
 
 ```bash
@@ -154,6 +160,15 @@ If you encounter multiprocessing errors on Windows when using `--reload`, try th
 - **GET** `/api/v1/agent/conversation/{id}` - Get conversation history
 - **DELETE** `/api/v1/agent/conversation/{id}` - Clear conversation history
 
+### 🗂️ Blob Storage Endpoints
+
+#### File Management
+- **GET** `/api/v1/blob/files` - List all files in instructions-files container
+- **GET** `/api/v1/blob/files/{filename}` - Download specific file
+- **HEAD** `/api/v1/blob/files/{filename}` - Get file metadata
+- **GET** `/api/v1/blob/files/{filename}/exists` - Check if file exists
+- **GET** `/api/v1/blob/info` - Get blob service information
+
 ## Agent Tools
 
 The medical agent has access to the following tools:
@@ -161,52 +176,52 @@ The medical agent has access to the following tools:
 ### 🔍 Patient Search
 - **search_patients** - General search by natural query
 - **search_patients_by_name** - Name search with normalization
-- **filter_patients_by_demographics** - Filtros por edad, email, año de nacimiento
-- **get_patient_by_id** - Detalles completos solo con IdentificationNumber
+- **filter_patients_by_demographics** - Filters by age, email, birth year
+- **get_patient_by_id** - Complete details only with IdentificationNumber
 
-### 📊 Estadísticas
-- **get_patients_summary** - Resumen estadístico (solo conteos, sin detalles)
+### 📊 Statistics
+- **get_patients_summary** - Statistical summary (counts only, no details)
 
-### 🩺 Historial Médico
-- **get_patient_medical_history** - Historial médico completo con citas, notas y diagnósticos
-- **get_patient_diagnoses_summary** - Resumen enfocado en diagnósticos y tratamientos
-- **count_patients_by_diagnosis** - Conteo estadístico de pacientes por diagnóstico específico
+### 🩺 Medical History
+- **get_patient_medical_history** - Complete medical history with appointments, notes and diagnoses
+- **get_patient_diagnoses_summary** - Summary focused on diagnoses and treatments
+- **count_patients_by_diagnosis** - Statistical count of patients by specific diagnosis
 
-### � Búsqueda por Diagnóstico
-- **search_patients_by_diagnosis** - Búsqueda completa de pacientes con un diagnóstico específico
-- **get_patient_names_by_diagnosis** - Obtiene nombres e IDs de pacientes con diagnóstico específico
+### 🔍 Diagnosis Search
+- **search_patients_by_diagnosis** - Complete search of patients with a specific diagnosis
+- **get_patient_names_by_diagnosis** - Gets names and IDs of patients with specific diagnosis
 
-### �📞 Búsqueda por Contacto
-- **search_patients_by_condition** - Buscar por información de contacto
+### 📞 Contact Search
+- **search_patients_by_condition** - Search by contact information
 
-### ➕ Gestión de Pacientes
-- **create_patient** - Crear nuevos pacientes en el sistema externo
-  - **Requiere permiso:** ManagePatients
-  - **Backend externo:** Consume API en `EXTERNAL_BACKEND_API_URL`
+### ➕ Patient Management
+- **create_patient** - Create new patients in the external system
+  - **Requires permission:** ManagePatients
+  - **External backend:** Consumes API at `EXTERNAL_BACKEND_API_URL`
   - **Endpoint:** POST `/api/Patient/create`
-  - **Autenticación:** JWT token del usuario actual
-- **update_patient** - Actualizar información de pacientes existentes
-  - **Requiere permiso:** ManagePatients
-  - **Backend externo:** Consume API en `EXTERNAL_BACKEND_API_URL`
+  - **Authentication:** Current user's JWT token
+- **update_patient** - Update existing patient information
+  - **Requires permission:** ManagePatients
+  - **External backend:** Consumes API at `EXTERNAL_BACKEND_API_URL`
   - **Endpoint:** PUT `/api/Patient/update-patient`
-  - **Autenticación:** JWT token del usuario actual
+  - **Authentication:** Current user's JWT token
 
-## Ejemplo de Uso
+## Usage Examples
 
-### Conversar con el agente:
+### Chat with the agent:
 ```json
 POST /api/v1/agent/chat
 {
-  "message": "Busca pacientes con el apellido García",
+  "message": "Search for patients with the last name García",
   "conversation_id": "conv_123"
 }
 ```
 
-### Crear un nuevo paciente:
+### Create a new patient:
 ```json
 POST /api/v1/agent/chat
 {
-  "message": "Crea un nuevo paciente con el nombre 'Juanfe Test', identificación '123456789', fecha de nacimiento '2020-07-27T22:25:33.321Z', edad 25, teléfono '3004441111' y email 'juanfe.test2@gmail.com'",
+  "message": "Create a new patient with name 'Juanfe Test', identification '123456789', birth date '2020-07-27T22:25:33.321Z', age 25, phone '3004441111' and email 'juanfe.test2@gmail.com'",
   "conversation_id": "conv_456"
 }
 ```
@@ -391,69 +406,69 @@ The `update_patient` tool allows updating existing patient information through t
 **Internal process:**
 1. ManagePatients permission validation
 2. JWT token extraction from context
-3. Búsqueda del paciente actual con `get_patient_by_id`
-4. Combinación de datos existentes con nuevos valores
-5. Llamada HTTP PUT al backend externo
-6. Manejo de respuestas (éxito/error)
+3. Search for current patient with `get_patient_by_id`
+4. Combine existing data with new values
+5. HTTP PUT call to external backend
+6. Response handling (success/error)
 
-**Respuestas esperadas:**
-- ✅ **200/204:** Paciente actualizado exitosamente
-- ❌ **400:** Error de validación de datos
-- ❌ **401:** Token JWT inválido o expirado
-- ❌ **403:** Sin permisos ManagePatients
-- ❌ **404:** Paciente no encontrado
-- ❌ **500:** Error del servidor externo
+**Expected responses:**
+- ✅ **200/204:** Patient updated successfully
+- ❌ **400:** Data validation error
+- ❌ **401:** Invalid or expired JWT token
+- ❌ **403:** No ManagePatients permissions
+- ❌ **404:** Patient not found
+- ❌ **500:** External server error
 
-## Arquitectura
+## Architecture
 
-### �️ Datos
-- **SQL Server** como única fuente de verdad
-- **Consultas directas** sin cache ni sincronización
-- **Normalización en tiempo real** para búsquedas
+### 🗄️ Data
+- **SQL Server** as single source of truth
+- **Direct queries** without cache or synchronization
+- **Real-time normalization** for searches
 
-### 🤖 Agente IA
-- **LangChain** para gestión del agente
-- **OpenAI GPT** para procesamiento de lenguaje
-- **Herramientas especializadas** para acceso a datos
+### 🤖 AI Agent
+- **LangChain** for agent management
+- **OpenAI GPT** for language processing
+- **Specialized tools** for data access
 
-### 🔐 Seguridad (Preparado para JWT)
-- **JWT configurado** para autenticación futura
-- **Variables de entorno** para secretos
-- **Configuración lista** para autorización por herramientas
+### 🔐 Security (JWT Ready)
+- **JWT configured** for future authentication
+- **Environment variables** for secrets
+- **Ready configuration** for tool-based authorization
 
-## Tecnologías
+## Technologies
 
-- **FastAPI** - Framework web moderno
-- **Pydantic** - Validación de datos
-- **OpenAI** - GPT para conversación
-- **LangChain** - Framework para agentes IA
-- **SQLAlchemy** - ORM para SQL Server
-- **pyodbc** - Driver de base de datos
-- **httpx** - Cliente HTTP para integración con backend externo
-- **PyJWT** - Procesamiento de tokens JWT
+- **FastAPI** - Modern web framework
+- **Pydantic** - Data validation
+- **OpenAI** - GPT for conversation
+- **LangChain** - Framework for AI agents
+- **SQLAlchemy** - ORM for SQL Server
+- **pyodbc** - Database driver
+- **httpx** - HTTP client for external backend integration
+- **PyJWT** - JWT token processing
 
-## Despliegue en Azure
+## Azure Deployment
 
-El proyecto está configurado para Azure App Service:
+The project is configured for Azure App Service:
 
-1. **startup.sh** - Script de inicialización
-2. **server.py** - Servidor para producción  
-3. **runtime.txt** - Especifica Python 3.11.12
-4. **requirements.txt** - Todas las dependencias
+1. **startup.sh** - Initialization script
+2. **server.py** - Production server  
+3. **runtime.txt** - Specifies Python 3.11.12
+4. **requirements.txt** - All dependencies
 
-## Corrección de errores:
+## Error Correction:
 
-En los archivos criticos los app services en el formato Unix debe ser (\n). 
-En caso de fallar debes correr estos scripts:
+In critical files, app services must use Unix format (\n). 
+If it fails, you should run these scripts:
 
-# Convertir startup.sh
+# Convert startup.sh
 (Get-Content startup.sh -Raw) -replace "`r`n", "`n" | Set-Content startup.sh -NoNewline
 
-# Convertir requirements.txt  
+# Convert requirements.txt  
 (Get-Content requirements.txt -Raw) -replace "`r`n", "`n" | Set-Content requirements.txt -NoNewline
 
-# Convertir server.py
+# Convert server.py
 (Get-Content server.py -Raw) -replace "`r`n", "`n" | Set-Content server.py -NoNewline
 
-# Convertir runtime.txt
+# Convert runtime.txt
 (Get-Content runtime.txt -Raw) -replace "`r`n", "`n" | Set-Content runtime.txt -NoNewline

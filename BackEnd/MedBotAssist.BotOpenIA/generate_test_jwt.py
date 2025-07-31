@@ -25,6 +25,7 @@ def generate_test_jwt():
         "name": "jperez",                           # ← Username for SQL query
         "email": "jperez@medbot.com",
         "role": "doctor",
+        "sasToken": "sp=r&st=2024-01-01T00:00:00Z&se=2024-12-31T23:59:59Z&sv=2023-01-03&sr=c&sig=EXAMPLE_SAS_TOKEN",  # ← SAS token for blob storage
         "iat": now,                                 # Issued at
         "exp": now + timedelta(minutes=EXPIRATION_MINUTES)  # Expiration
     }
@@ -51,13 +52,26 @@ def main():
         print(f"\n📝 For use in Postman/Curl:")
         print(f"Authorization: Bearer {token}")
 
-        print(f"\n🧪 Test curl command:")
-        print(f'curl -X POST "http://localhost:8000/api/v1/agent/permissions" \\')
+        print(f"\n🧪 Test curl commands:")
+        print(f'# List files in blob storage:')
+        print(f'curl -X GET "http://localhost:8000/api/v1/blob/files" \\')
+        print(f'  -H "Authorization: Bearer {token}"')
+        
+        print(f'\n# Download specific file:')
+        print(f'curl -X GET "http://localhost:8000/api/v1/blob/files/example.pdf" \\')
         print(f'  -H "Authorization: Bearer {token}" \\')
-        print(f'  -H "Content-Type: application/json"')
+        print(f'  --output "downloaded_file.pdf"')
+        
+        print(f'\n# Check if file exists:')
+        print(f'curl -X GET "http://localhost:8000/api/v1/blob/files/example.pdf/exists" \\')
+        print(f'  -H "Authorization: Bearer {token}"')
 
-        print(f"\n💡 This token will seek permissions for the user: 'jperez'")
+        print(f"\n💡 This token includes:")
+        print(f"  - Username: 'jperez' (for database queries)")  
+        print(f"  - SAS Token: For blob storage access")
         print(f"⏰ Token valid for: 60 minutes")
+        print(f"🗂️  Blob container: instructions-files")
+        print(f"🌐 Blob storage: https://strmedbotassist.blob.core.windows.net")
 
     except Exception as e:
         print(f"❌ Error generating JWT: {e}")
