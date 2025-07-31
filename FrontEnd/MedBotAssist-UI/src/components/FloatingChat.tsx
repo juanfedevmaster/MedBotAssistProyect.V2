@@ -50,17 +50,14 @@ const FloatingChat: React.FC = () => {
 
   // Function to convert server timestamp to local date
   const convertToLocalTime = (timestamp: string): Date => {
-    console.log('convertToLocalTime input:', timestamp, 'type:', typeof timestamp);
     
     // Handle empty or null timestamp
     if (!timestamp) {
-      console.warn('Empty timestamp received, using current time');
       return new Date();
     }
     
     // Create a date from the timestamp
     let date = new Date(timestamp);
-    console.log('Initial date parsing result:', date.toString(), 'isValid:', !isNaN(date.getTime()));
     
     if (!isNaN(date.getTime())) {
       // SPECIFIC CORRECTION: Detect server timezone problem
@@ -72,18 +69,11 @@ const FloatingChat: React.FC = () => {
       // - Correction needed: Subtract 5 hours to return to 29/07/2025 19:16 local
       
       const originalHour = date.getUTCHours();
-      console.log('Original UTC hour from server:', originalHour);
-      console.log('Original date from server:', date.toISOString());
       
       // Subtract 5 hours to correct from 05:16 UTC to 00:16 UTC, 
       // which in your GMT-5 timezone will be 19:16 of the previous day
       const correctionHours = -5;
       const correctedDate = new Date(date.getTime() + (correctionHours * 60 * 60 * 1000));
-      
-      console.log(`Applied timezone correction (${correctionHours} hours)`);
-      console.log('Original server time:', date.toISOString());
-      console.log('Corrected time:', correctedDate.toISOString());
-      console.log('Final local time:', correctedDate.toString());
       
       return correctedDate;
     }
@@ -92,9 +82,7 @@ const FloatingChat: React.FC = () => {
     try {
       // Try with ISO format if it doesn't have timezone information
       if (!timestamp.includes('Z') && !timestamp.includes('+') && !timestamp.includes('-')) {
-        console.log('No timezone info found, assuming UTC and converting to local');
         date = new Date(timestamp + 'Z');
-        console.log('UTC conversion result:', date.toString());
         if (!isNaN(date.getTime())) {
           return date;
         }
@@ -102,7 +90,6 @@ const FloatingChat: React.FC = () => {
       
       // Try direct parsing
       date = new Date(timestamp);
-      console.log('Direct parsing result:', date.toString());
       if (!isNaN(date.getTime())) {
         return date;
       }
@@ -111,7 +98,6 @@ const FloatingChat: React.FC = () => {
       console.error('Error parsing timestamp:', timestamp, error);
     }
     
-    console.warn('Could not parse timestamp, using current time as fallback');
     return new Date(); // Fallback to current date
   };
 
@@ -123,55 +109,33 @@ const FloatingChat: React.FC = () => {
       const convId = TokenManager.getConversationId();
       
       if (!token) {
-        console.log('No token available, cannot load history');
         return;
       }
 
       if (!username || !convId) {
-        console.log('Missing data to load history - Username:', !!username, 'ConversationId:', !!convId);
         return;
       }
 
       // Build URL with parameters
       const historyUrl = `${API_ENDPOINTS.CHAT_HISTORY}?userName=${encodeURIComponent(username)}&conversationId=${encodeURIComponent(convId)}`;
-      console.log('Loading chat history from:', historyUrl);
       
       const response = await fetch(historyUrl, {
         method: 'GET',
         headers: TokenManager.getAuthHeaders()
       });
 
-      console.log('Server response:', response.status, response.statusText);
-
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const historyData: ChatHistoryItem[] = await response.json();
-      console.log('History data received:', historyData);
       
       // Convert history to chat message format
       const historyMessages: ChatMessage[] = [];
       
       historyData.forEach((item) => {
-        // Show original timestamp before converting
-        console.log('Processing history item:', {
-          interactionId: item.interactionId,
-          originalTimestamp: item.timestamp,
-          timestampType: typeof item.timestamp
-        });
-        
         // Convert timestamp to browser local date
         const localTimestamp = convertToLocalTime(item.timestamp);
-        
-        // Detailed conversion log
-        console.log('Timestamp conversion details:', {
-          original: item.timestamp,
-          converted: localTimestamp.toString(),
-          formattedTime: formatTime(localTimestamp),
-          timezoneOffset: localTimestamp.getTimezoneOffset(),
-          localeDateString: localTimestamp.toLocaleString()
-        });
         
         // Add user message
         historyMessages.push({
@@ -190,16 +154,12 @@ const FloatingChat: React.FC = () => {
         });
       });
 
-      console.log('Converted history messages:', historyMessages);
-      
       // Ensure all timestamps are Date objects before setting messages
       const messagesWithValidDates = historyMessages.map(msg => ({
         ...msg,
         timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp)
       }));
-      
-      console.log('Messages with validated dates:', messagesWithValidDates);
-      
+            
       // Set history messages
       setMessages(messagesWithValidDates);
     } catch (error) {
@@ -214,10 +174,6 @@ const FloatingChat: React.FC = () => {
   // Initialize conversation ID when component mounts and check authentication
   useEffect(() => {
     const initializeChat = async () => {
-      console.log('=== INITIALIZING CHAT ===');
-      console.log('Current path:', location.pathname);
-      console.log('Is on auth page:', isOnAuthPage);
-      
       // Only proceed if not on authentication pages
       if (isOnAuthPage) {
         console.log('On authentication page, skipping chat initialization');
@@ -294,7 +250,6 @@ const FloatingChat: React.FC = () => {
 
     const handleUserLogout = async () => {
       // User logged out, clear chat messages and hide
-      console.log('User logged out, hiding chat');
       setIsAuthenticated(false);
       setIsOpen(false); // Close the chat
       clearChatMessages();
@@ -311,14 +266,11 @@ const FloatingChat: React.FC = () => {
       const existingConvId = TokenManager.getConversationId();
       if (!existingConvId) {
         // No previous conversation_id, generate a new one
-        console.log('No previous conversation_id, generating new one');
         const newConvId = generateConversationId();
         setConversationId(newConvId);
         // Clear messages for new conversation
         clearChatMessages();
       } else {
-        // conversation_id already exists, use it and load history
-        console.log('Existing conversation_id found, loading history:', existingConvId);
         setConversationId(existingConvId);
         // Load chat history
         await loadChatHistory();
@@ -340,7 +292,6 @@ const FloatingChat: React.FC = () => {
     if (!inputMessage.trim() || isLoading) return;
 
     const currentTime = new Date();
-    console.log('New message timestamp:', currentTime.toString(), '-> Formatted time:', formatTime(currentTime));
 
     const userMessage: ChatMessage = {
       id: `user_${Date.now()}`,
@@ -369,7 +320,6 @@ const FloatingChat: React.FC = () => {
       const data: ChatResponse = await response.json();
 
       const botResponseTime = new Date();
-      console.log('Bot response timestamp:', botResponseTime.toString(), '-> Formatted time:', formatTime(botResponseTime));
 
       const aiMessage: ChatMessage = {
         id: `ai_${Date.now()}`,
@@ -390,7 +340,6 @@ const FloatingChat: React.FC = () => {
       console.error('Error sending message:', error);
       
       const errorTime = new Date();
-      console.log('Error message timestamp:', errorTime.toString(), '-> Formatted time:', formatTime(errorTime));
       
       const errorMessage: ChatMessage = {
         id: `error_${Date.now()}`,
@@ -413,18 +362,13 @@ const FloatingChat: React.FC = () => {
   };
 
   const formatTime = (date: Date) => {
-    // Log for debugging
-    console.log('formatTime input:', date, 'type:', typeof date, 'isDate:', date instanceof Date);
-    
     // If receiving a string, convert to Date
     if (typeof date === 'string') {
-      console.log('formatTime received string, converting to Date:', date);
       date = new Date(date);
     }
     
     // Ensure the date is valid
     if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-      console.warn('formatTime received invalid date:', date);
       return '00:00';
     }
     
@@ -438,7 +382,6 @@ const FloatingChat: React.FC = () => {
       hour12: false
     });
     
-    console.log('formatTime result:', formattedDateTime);
     return formattedDateTime;
   };
 
@@ -450,7 +393,6 @@ const FloatingChat: React.FC = () => {
 
   // Don't render chat on login/register pages or if not authenticated
   if (isOnAuthPage || !isAuthenticated) {
-    console.log('Chat hidden - on auth page or not authenticated');
     return null;
   }
 
