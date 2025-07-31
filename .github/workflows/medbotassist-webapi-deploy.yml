@@ -18,13 +18,16 @@ jobs:
         with:
           dotnet-version: '8.0'
 
-      - name: Reemplazar variables en appsettings.json
+      - name: Replace variables in appsettings.json
+        env:
+           DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+           AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
         run: |
-           sed -i 's|"MedBotAssistConnection": ""|"MedBotAssistConnection": "${{ secrets.DB_CONNECTION_STRING }}"|' BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi/appsettings.json
-           sed -i 's|"Secret": ""|"Secret": "${{ secrets.JWT_SECRET }}"|' BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi/appsettings.json
-           sed -i 's|"accountKey": ""|"accountKey": "${{ secrets.AZURE_STORAGE_KEY }}"|' BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi/appsettings.json
-
-      
+           sed -i 's|"MedBotAssistConnection": ""|"MedBotAssistConnection": "'"$DB_CONNECTION_STRING"'"|' BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi/appsettings.json
+           sed -i 's|"Secret": ""|"Secret": "'"$JWT_SECRET"'"|' BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi/appsettings.json
+           sed -i 's|"accountKey": ""|"accountKey": "'"$AZURE_STORAGE_KEY"'"|' BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi/appsettings.json
+                 
       - name: Restore dependencies
         run: dotnet restore BackEnd/MedBotAssist.WebApi/MedBotAssist.WebApi.sln
 
