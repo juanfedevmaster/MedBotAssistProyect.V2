@@ -251,10 +251,16 @@ instructive_search_tools = InstructiveSearchTools()
 def _initialize_instructive_tools():
     """Initialize instructive tools with the global vectorization manager."""
     try:
-        from app.services.vectorization_manager import vectorization_manager
+        print("DEBUG: Attempting to initialize instructive tools...")
+        from app.services.vectorization_manager import get_vectorization_manager
+        vectorization_manager = get_vectorization_manager()
+        print(f"DEBUG: Got vectorization_manager singleton with {vectorization_manager.get_document_count()} documents")
         instructive_search_tools.set_vectorization_manager(vectorization_manager)
+        print("DEBUG: Successfully initialized instructive tools")
     except Exception as e:
         print(f"Warning: Could not initialize instructive tools: {e}")
+        import traceback
+        traceback.print_exc()
 
 # LangChain tools to use in the medical agent
 @tool
@@ -346,14 +352,18 @@ def get_available_instructives_list() -> str:
     """
     try:
         # Ensure vectorization manager is initialized
+        print("DEBUG: get_available_instructives_list called")
         if not instructive_search_tools.vectorization_manager:
+            print("DEBUG: No vectorization manager, attempting to initialize...")
             _initialize_instructive_tools()
         
         # Check if vectorization manager is available
         if not instructive_search_tools.vectorization_manager:
+            print("DEBUG: Still no vectorization manager after initialization")
             return "No vectorization system available."
         
         document_count = instructive_search_tools._get_document_count()
+        print(f"DEBUG: Document count: {document_count}")
         if document_count == 0:
             return "No instructional documents have been vectorized yet."
         

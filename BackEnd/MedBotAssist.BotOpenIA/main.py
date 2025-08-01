@@ -66,7 +66,10 @@ async def startup_event():
     
     try:
         # Import here to avoid circular imports
-        from app.services.vectorization_manager import vectorization_manager
+        from app.services.vectorization_manager import get_vectorization_manager
+        
+        # Get the singleton instance
+        vectorization_manager = get_vectorization_manager()
         
         # Check if auto-vectorization should run
         result = await vectorization_manager.auto_vectorize_on_startup()
