@@ -244,8 +244,17 @@ Respond clearly and professionally based solely on the information provided."""
                 'results': []
             }
 
-# Global instance to use in the agent
+# Global instance to use in the agent - will be initialized after vectorization_manager is available
 instructive_search_tools = InstructiveSearchTools()
+
+# Initialize with the global vectorization manager
+def _initialize_instructive_tools():
+    """Initialize instructive tools with the global vectorization manager."""
+    try:
+        from app.services.vectorization_manager import vectorization_manager
+        instructive_search_tools.set_vectorization_manager(vectorization_manager)
+    except Exception as e:
+        print(f"Warning: Could not initialize instructive tools: {e}")
 
 # LangChain tools to use in the medical agent
 @tool
@@ -264,6 +273,10 @@ def search_instructive_info(query: str) -> str:
         Information found in medical instructional documents with cited sources
     """
     try:
+        # Ensure vectorization manager is initialized
+        if not instructive_search_tools.vectorization_manager:
+            _initialize_instructive_tools()
+        
         # Check if vectorization manager is available
         if not instructive_search_tools.vectorization_manager:
             return "No vectorized instructional documents available in the system."
@@ -332,6 +345,10 @@ def get_available_instructives_list() -> str:
         List of available medical instructional documents with details
     """
     try:
+        # Ensure vectorization manager is initialized
+        if not instructive_search_tools.vectorization_manager:
+            _initialize_instructive_tools()
+        
         # Check if vectorization manager is available
         if not instructive_search_tools.vectorization_manager:
             return "No vectorization system available."
