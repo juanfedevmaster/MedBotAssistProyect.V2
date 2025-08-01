@@ -45,16 +45,55 @@ class InstructiveSearchTools:
             # Don't fall back to in-memory - we need persistence
             raise RuntimeError(f"Vector database initialization failed: {str(e)}")
         
-        # Get or create collection
+        # Get or create collection with OpenAI embedding compatibility
         try:
             self.collection = self.chroma_client.get_collection(name="medical_documents")
+            
+            # Test compatibility with OpenAI embeddings (1536 dimensions)
+            try:
+                test_embedding = [0.0] * 1536  # OpenAI text-embedding-3-small dimensions
+                test_id = f"dimension_test_{hash('test')}"
+                
+                self.collection.add(
+                    ids=[test_id],
+                    embeddings=[test_embedding],
+                    documents=["Dimension compatibility test"],
+                    metadatas=[{"test": True}]
+                )
+                # If successful, clean up
+                self.collection.delete(ids=[test_id])
+                print("DEBUG InstructiveSearchTools: Collection is compatible with OpenAI embeddings")
+                
+            except Exception as dim_error:
+                print(f"DEBUG InstructiveSearchTools: Collection dimension incompatibility: {dim_error}")
+                print("DEBUG InstructiveSearchTools: Deleting incompatible collection and creating new one")
+                
+                # Delete the incompatible collection
+                self.chroma_client.delete_collection(name="medical_documents")
+                
+                # Create new collection
+                self.collection = self.chroma_client.create_collection(
+                    name="medical_documents",
+                    metadata={
+                        "description": "Vectorized medical documents", 
+                        "embedding_model": "text-embedding-3-small",
+                        "embedding_dimensions": 1536
+                    }
+                )
+                print("DEBUG InstructiveSearchTools: Created new OpenAI-compatible collection")
+                
         except Exception:
             # If collection doesn't exist, create it
             try:
                 self.collection = self.chroma_client.create_collection(
                     name="medical_documents",
-                    metadata={"description": "Vectorized medical documents"}
+                    metadata={
+                        "description": "Vectorized medical documents",
+                        "embedding_model": "text-embedding-3-small",
+                        "embedding_dimensions": 1536
+                    }
                 )
+                print("DEBUG InstructiveSearchTools: Created new collection with OpenAI compatibility")
             except Exception as e:
                 print(f"Warning: Could not create collection: {e}")
                 self.collection = None
