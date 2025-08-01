@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     DB_DATABASE: str = "MedBotAssistDB"
     DB_USER: str = "medicaluser"
     DB_PASSWORD: str = "Admin123!"
-    DB_DRIVER: str = "ODBC Driver 18 for SQL Server"  # Try version 18 first, fallback to 17
+    DB_DRIVER: str = "ODBC Driver 17 for SQL Server"  # Use version 17 which is more widely available
     
     # JWT Configuration
     JWT_SECRET: str = os.getenv("JWT_SECRET", "")
