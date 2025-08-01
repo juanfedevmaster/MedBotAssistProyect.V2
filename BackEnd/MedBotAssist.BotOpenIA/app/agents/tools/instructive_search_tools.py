@@ -58,6 +58,33 @@ class InstructiveSearchTools:
             except Exception as e:
                 print(f"Warning: Could not create collection: {e}")
                 self.collection = None
+                
+        # Comprehensive debug logging for InstructiveSearchTools
+        try:
+            if self.collection:
+                all_collections = self.chroma_client.list_collections()
+                print(f"DEBUG InstructiveSearchTools: All available collections: {[c.name for c in all_collections]}")
+                
+                collection_count = self.collection.count()
+                print(f"DEBUG InstructiveSearchTools: Collection 'medical_documents' has {collection_count} documents")
+                
+                if collection_count > 0:
+                    # Try to get a sample of documents to verify content exists
+                    sample_docs = self.collection.get(limit=3, include=['documents', 'metadatas'])
+                    if sample_docs and sample_docs.get('documents'):
+                        print(f"DEBUG InstructiveSearchTools: Sample documents found: {len(sample_docs['documents'])}")
+                        for i, doc in enumerate(sample_docs['documents'][:2]):  # Show first 2
+                            metadata = sample_docs['metadatas'][i] if sample_docs.get('metadatas') else {}
+                            print(f"DEBUG InstructiveSearchTools: Doc {i+1} - Filename: {metadata.get('filename', 'unknown')}, Content: {doc[:100]}...")
+                    else:
+                        print("DEBUG InstructiveSearchTools: No documents found in get() query despite count > 0")
+                else:
+                    print("DEBUG InstructiveSearchTools: Collection is empty (count = 0)")
+            else:
+                print("DEBUG InstructiveSearchTools: Collection is None - initialization failed")
+                
+        except Exception as debug_e:
+            print(f"DEBUG InstructiveSearchTools: Debug logging failed: {debug_e}")
     
     def _generate_embedding(self, text: str) -> List[float]:
         """Generates embedding for a text using OpenAI"""

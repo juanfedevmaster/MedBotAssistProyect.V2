@@ -128,7 +128,45 @@ class VectorizationManager:
             logger.error("This may indicate ChromaDB initialization issues")
         self.log_collection = self._get_or_create_collection(self.log_collection_name)
         
-        logger.info(f"VectorizationManager initialized with collection '{collection_name}'")
+        logger.info(f"VectorizationManager initialized with collection '{self.collection_name}'")
+        
+        # Comprehensive debug logging for collection state
+        try:
+            all_collections = self.chroma_client.list_collections()
+            logger.info(f"DEBUG: All available collections: {[c.name for c in all_collections]}")
+            
+            main_count = self.collection.count()
+            logger.info(f"DEBUG: Main collection '{self.collection_name}' document count: {main_count}")
+            
+            # Test adding and retrieving a sample document to verify persistence
+            test_id = f"test_document_{datetime.now().timestamp()}"
+            try:
+                self.collection.add(
+                    ids=[test_id],
+                    documents=["Test document for persistence verification"],
+                    metadatas=[{"test": True, "timestamp": datetime.now().isoformat()}]
+                )
+                logger.info(f"DEBUG: Successfully added test document {test_id}")
+                
+                # Immediately verify the document exists
+                verification_count = self.collection.count()
+                logger.info(f"DEBUG: Collection count after test add: {verification_count}")
+                
+                # Try to retrieve the test document
+                test_results = self.collection.get(ids=[test_id])
+                if test_results and test_results.get('documents'):
+                    logger.info(f"DEBUG: Successfully retrieved test document: {test_results['documents'][0][:50]}...")
+                    # Clean up test document
+                    self.collection.delete(ids=[test_id])
+                    logger.info(f"DEBUG: Test document cleaned up. Final count: {self.collection.count()}")
+                else:
+                    logger.error(f"DEBUG: Failed to retrieve test document {test_id}")
+                    
+            except Exception as test_e:
+                logger.error(f"DEBUG: Test document operation failed: {test_e}")
+                
+        except Exception as debug_e:
+            logger.error(f"DEBUG: Collection debugging failed: {debug_e}")
     
     def _get_or_create_collection(self, name: str):
         """Get or create a ChromaDB collection."""
