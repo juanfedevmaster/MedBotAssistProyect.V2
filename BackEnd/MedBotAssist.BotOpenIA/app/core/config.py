@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     # Azure Blob Storage Configuration
     BLOB_STORAGE_BASE_URL: str = os.getenv("BLOB_STORAGE_BASE_URL", "https://strmedbotassist.blob.core.windows.net")
     BLOB_CONTAINER_NAME: str = os.getenv("BLOB_CONTAINER_NAME", "instructions-files")
+    AZURE_STORAGE_CONNECTION_STRING: str = os.getenv("AZURE_STORAGE_CONNECTION_STRING", "")
+    AUTO_VECTORIZE_ON_STARTUP: bool = os.getenv("AUTO_VECTORIZE_ON_STARTUP", "true").lower() == "true"
     
     # Vectorization Configuration
     VECTOR_DB_PATH: str = os.getenv("VECTOR_DB_PATH", "./chroma_db")
