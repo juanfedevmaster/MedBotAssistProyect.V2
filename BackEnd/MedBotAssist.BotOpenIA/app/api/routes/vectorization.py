@@ -22,10 +22,16 @@ from app.services.vectorization_manager import get_vectorization_manager
 vectorization_manager = get_vectorization_manager()
 jwt_service = JWTService()
 
-# Initialize instructive search tools and connect with vectorization manager
-from app.agents.tools.instructive_search_tools import _get_instructive_tools
-instructive_tools = _get_instructive_tools()
-# No need to set vectorization manager again since _get_instructive_tools already does it
+# Initialize instructive search tools - will be initialized lazily when first needed
+from app.agents.tools.instructive_search_tools import InstructiveSearchTools
+
+def get_instructive_tools() -> InstructiveSearchTools:
+    """Get initialized instructive tools with the vectorization manager."""
+    global _instructive_tools_instance
+    if '_instructive_tools_instance' not in globals():
+        _instructive_tools_instance = InstructiveSearchTools()
+        _instructive_tools_instance.set_vectorization_manager(vectorization_manager)
+    return _instructive_tools_instance
 
 def validate_jwt_and_permissions(authorization: str) -> Dict[str, Any]:
     """
@@ -264,6 +270,7 @@ async def search_instructives(
         user_info = validate_jwt_and_permissions(authorization)
         
         # Use the instructive search tools
+        instructive_tools = get_instructive_tools()
         result = instructive_tools.search_instructive_information(
             query=query,
             max_results=max_results,
@@ -317,6 +324,7 @@ async def get_available_instructives(
         # Validate JWT and permissions
         user_info = validate_jwt_and_permissions(authorization)
         
+        instructive_tools = get_instructive_tools()
         result = instructive_tools.get_available_instructives()
         result["requested_by"] = user_info["username"]
         
@@ -368,6 +376,7 @@ async def search_by_filename(
         # Validate JWT and permissions
         user_info = validate_jwt_and_permissions(authorization)
         
+        instructive_tools = get_instructive_tools()
         result = instructive_tools.search_by_filename(filename=filename, query=query)
         result["requested_by"] = user_info["username"]
         
