@@ -18,12 +18,14 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # Initialize services
-vectorization_manager = VectorizationManager()
+from app.services.vectorization_manager import get_vectorization_manager
+vectorization_manager = get_vectorization_manager()
 jwt_service = JWTService()
 
 # Initialize instructive search tools and connect with vectorization manager
-from app.agents.tools.instructive_search_tools import instructive_search_tools
-instructive_search_tools.set_vectorization_manager(vectorization_manager)
+from app.agents.tools.instructive_search_tools import _get_instructive_tools
+instructive_tools = _get_instructive_tools()
+# No need to set vectorization manager again since _get_instructive_tools already does it
 
 def validate_jwt_and_permissions(authorization: str) -> Dict[str, Any]:
     """
@@ -262,7 +264,7 @@ async def search_instructives(
         user_info = validate_jwt_and_permissions(authorization)
         
         # Use the instructive search tools
-        result = instructive_search_tools.search_instructive_information(
+        result = instructive_tools.search_instructive_information(
             query=query,
             max_results=max_results,
             min_similarity=min_similarity
@@ -315,7 +317,7 @@ async def get_available_instructives(
         # Validate JWT and permissions
         user_info = validate_jwt_and_permissions(authorization)
         
-        result = instructive_search_tools.get_available_instructives()
+        result = instructive_tools.get_available_instructives()
         result["requested_by"] = user_info["username"]
         
         logger.info(f"Retrieved {result.get('total_files', 0)} available instructives for '{user_info['username']}'")
@@ -366,7 +368,7 @@ async def search_by_filename(
         # Validate JWT and permissions
         user_info = validate_jwt_and_permissions(authorization)
         
-        result = instructive_search_tools.search_by_filename(filename=filename, query=query)
+        result = instructive_tools.search_by_filename(filename=filename, query=query)
         result["requested_by"] = user_info["username"]
         
         logger.info(f"Search in file '{filename}' with query '{query}' by '{user_info['username']}' returned {result.get('total_chunks', 0)} chunks")
