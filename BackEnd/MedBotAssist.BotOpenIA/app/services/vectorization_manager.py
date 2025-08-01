@@ -169,12 +169,55 @@ class VectorizationManager:
             logger.error(f"DEBUG: Collection debugging failed: {debug_e}")
     
     def _get_or_create_collection(self, name: str):
-        """Get or create a ChromaDB collection."""
+        """Get or create a ChromaDB collection compatible with OpenAI embeddings."""
         try:
             collection = self.chroma_client.get_collection(name=name)
             logger.info(f"Retrieved existing collection: {name}")
+            
+            # Test compatibility with OpenAI embeddings (1536 dimensions)
+            # Try to add a test embedding to check dimension compatibility
+            try:
+                test_embedding = [0.0] * 1536  # OpenAI text-embedding-3-small dimensions
+                test_id = f"dimension_test_{datetime.now().timestamp()}"
+                
+                collection.add(
+                    ids=[test_id],
+                    embeddings=[test_embedding],
+                    documents=["Dimension compatibility test"],
+                    metadatas=[{"test": True}]
+                )
+                # If successful, clean up and use existing collection
+                collection.delete(ids=[test_id])
+                logger.info(f"Collection '{name}' is compatible with OpenAI embeddings (1536 dimensions)")
+                
+            except Exception as dim_error:
+                logger.warning(f"Collection '{name}' has dimension incompatibility: {dim_error}")
+                logger.info(f"Deleting incompatible collection '{name}' and creating new one")
+                
+                # Delete the incompatible collection
+                self.chroma_client.delete_collection(name=name)
+                
+                # Create new collection with OpenAI-compatible settings
+                collection = self.chroma_client.create_collection(
+                    name=name,
+                    metadata={
+                        "description": "Medical documents vectorized with OpenAI embeddings",
+                        "embedding_model": "text-embedding-3-small",
+                        "embedding_dimensions": 1536
+                    }
+                )
+                logger.info(f"Created new OpenAI-compatible collection: {name}")
+                
         except Exception:
-            collection = self.chroma_client.create_collection(name=name)
+            # Collection doesn't exist, create new one
+            collection = self.chroma_client.create_collection(
+                name=name,
+                metadata={
+                    "description": "Medical documents vectorized with OpenAI embeddings",
+                    "embedding_model": "text-embedding-3-small", 
+                    "embedding_dimensions": 1536
+                }
+            )
             logger.info(f"Created new collection: {name}")
         return collection
     
