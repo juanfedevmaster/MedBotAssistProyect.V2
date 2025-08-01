@@ -507,7 +507,18 @@ class VectorizationManager:
             }
 
 
-# Global instance for the application
-vectorization_manager = VectorizationManager()
-logger.info(f"VectorizationManager set with {vectorization_manager.get_document_count()} documents")
+# Global instance for the application - using singleton pattern
+_vectorization_manager_instance = None
+
+def get_vectorization_manager():
+    """Get the singleton instance of VectorizationManager."""
+    global _vectorization_manager_instance
+    if _vectorization_manager_instance is None:
+        _vectorization_manager_instance = VectorizationManager()
+        logger.info(f"Created new VectorizationManager instance with {_vectorization_manager_instance.get_document_count()} documents")
+    return _vectorization_manager_instance
+
+# Backwards compatibility
+vectorization_manager = get_vectorization_manager()
+logger.info(f"VectorizationManager singleton initialized with {vectorization_manager.get_document_count()} documents")
 
