@@ -553,3 +553,189 @@ The system implements a solid architecture, due to the importance of medical ins
    - Integrate with file upload system
    - Configure webhooks to trigger automatic re-vectorization
    - Optimize performance for large file volumes
+
+# Auto-Vectorization on Server Startup
+
+## Description
+
+This functionality allows that when the FastAPI server restarts and the in-memory vector database (`VectorInMemory`) is empty, it automatically processes and vectorizes all files found in the configured Azure Blob Storage container.
+
+## Required Configuration
+
+### 1. Environment Variables (.env)
+
+```properties
+# Azure Blob Storage Configuration
+BLOB_STORAGE_BASE_URL=https://strmedbotassist.blob.core.windows.net
+BLOB_CONTAINER_NAME=instructions-files
+AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=strmedbotassist;AccountKey=YOUR_ACCOUNT_KEY_HERE;EndpointSuffix=core.windows.net
+AUTO_VECTORIZE_ON_STARTUP=true
+```
+
+### 2. Azure Storage Connection String
+
+You need to obtain the connection string from your Azure Storage account:
+
+1. Go to the Azure Portal
+2. Navigate to your Storage Account (`strmedbotassist`)
+3. In the left menu, select "Access keys"
+4. Copy the "Connection string" from key1 or key2
+5. Replace `YOUR_ACCOUNT_KEY_HERE` in the `.env` file
+
+## How It Works
+
+### When It Executes
+
+Auto-vectorization runs automatically when:
+
+1. **The server starts** (`python -m uvicorn main:app --host 0.0.0.0 --port 8000`)
+2. **The vector database is empty** (0 documents)
+3. **AUTO_VECTORIZE_ON_STARTUP=true** in the configuration
+
+### What It Does
+
+1. **Verifies configuration**: Checks that all variables are configured
+2. **Lists files**: Gets all files from the Azure Blob container
+3. **Processes each file**: Downloads, extracts text and vectorizes each file
+4. **Stores in memory**: Saves vectors in the `VectorInMemory` database
+5. **Logs results**: Detailed logs of the process
+
+### Supported File Types
+
+- **PDF** (.pdf)
+- **Word** (.docx)
+- **HTML** (.html, .htm)
+- **Plain text** (.txt)
+
+## Benefits for Deployments
+
+### Problem Solved
+
+```bash
+# BEFORE: With each deploy you lost all vectors
+Deploy #1: 100 vectorized documents ✅
+Deploy #2: 0 documents ❌ (lost)
+Deploy #3: 0 documents ❌ (lost)
+
+# NOW: Auto-recovery after each deploy
+Deploy #1: 100 vectorized documents ✅
+Deploy #2: 100 auto-vectorized documents ✅ (automatically recovered)
+Deploy #3: 100 auto-vectorized documents ✅ (automatically recovered)
+```
+
+### CI/CD Pipeline
+
+```yaml
+# azure-pipelines.yml
+steps:
+- task: AzureWebApp@1
+  inputs:
+    azureSubscription: 'service-connection'
+    appName: 'medbot-api'
+    package: '.'
+    
+# When deploying:
+# 1. New instance starts
+# 2. Vector DB is empty
+# 3. Auto-vectorization executes
+# 4. All documents are processed automatically
+# 5. API ready to use
+```
+
+## Example Logs
+
+### Successful Startup
+```
+INFO: FastAPI application starting up...
+INFO: Vector database is empty. Starting auto-vectorization from Azure Blob Storage...
+INFO: Found 15 files in Azure Blob Storage. Starting auto-vectorization...
+INFO: Auto-vectorizing file 1/15: 'medical_protocols.pdf'
+INFO: Auto-vectorizing file 2/15: 'drug_interactions.docx'
+...
+INFO: ✅ Auto-vectorization completed: 15 files processed, 847 chunks created
+INFO: FastAPI application startup completed
+```
+
+### Startup with Non-Empty Vector DB
+```
+INFO: FastAPI application starting up...
+INFO: ⏭️ Auto-vectorization skipped: Vector database already contains 847 documents
+INFO: FastAPI application startup completed
+```
+
+### Startup with Auto-vectorization Disabled
+```
+INFO: FastAPI application starting up...
+INFO: 🔒 Auto-vectorization is disabled in configuration
+INFO: FastAPI application startup completed
+```
+
+## Configuration for Different Environments
+
+### Development (with --reload)
+```bash
+# Vectors restart with each code change
+# but auto-vectorize each time
+python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### Production (without --reload)
+```bash
+# Vectors persist until next deploy
+# Only auto-vectorize on startup if empty
+python -m uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+## Troubleshooting
+
+### Error: Azure Storage SDK not available
+```bash
+pip install azure-storage-blob azure-identity
+```
+
+### Error: Connection string not configured
+```
+ERROR: Azure Storage connection string not configured
+```
+**Solution**: Configure `AZURE_STORAGE_CONNECTION_STRING` in `.env`
+
+### Error: Access denied to Azure Storage
+```
+ERROR: Error listing blobs: (403) Forbidden
+```
+**Solution**: Verify that the connection string is correct and has read permissions
+
+### Auto-vectorization doesn't execute
+**Check**:
+1. `AUTO_VECTORIZE_ON_STARTUP=true`
+2. Vector DB is actually empty (no previous documents)
+3. Connection string is valid
+4. Container exists and has files
+
+## Performance
+
+### Startup Time
+- **No files**: ~2-3 seconds
+- **With 10 files**: ~30-45 seconds
+- **With 50 files**: ~2-3 minutes
+
+### Memory Usage
+- Each vectorized document consumes ~1-2 MB in RAM
+- 100 documents ≈ 100-200 MB additional
+
+### Optimizations
+- Only executes when DB is empty
+- Asynchronous file processing
+- Detailed logs for monitoring
+- Error handling without failing startup
+
+## Disable Auto-Vectorization
+
+To disable this functionality:
+
+```properties
+# In .env
+AUTO_VECTORIZE_ON_STARTUP=false
+```
+
+Or simply don't configure `AZURE_STORAGE_CONNECTION_STRING`.

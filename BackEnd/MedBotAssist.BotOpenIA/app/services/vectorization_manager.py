@@ -392,3 +392,122 @@ class VectorizationManager:
                 detail=f"Error during revectorization: {str(e)}"
             )
 
+    async def auto_vectorize_on_startup(self) -> Dict[str, Any]:
+        """
+        Auto-vectorize all files from Azure Blob Storage on server startup
+        if the VectorInMemory database is empty.
+        
+        This method is called automatically when the server starts and the
+        vector database is empty. It processes all files in the configured
+        blob container.
+        
+        Returns:
+            Dictionary with auto-vectorization results
+        """
+        try:
+            # Check if auto-vectorization is enabled
+            if not settings.AUTO_VECTORIZE_ON_STARTUP:
+                logger.info("Auto-vectorization on startup is disabled")
+                return {
+                    "status": "disabled",
+                    "message": "Auto-vectorization on startup is disabled in configuration"
+                }
+            
+            # Check if vector database is empty
+            if self.get_document_count() > 0:
+                logger.info(f"Vector database already contains {self.get_document_count()} documents. Skipping auto-vectorization.")
+                return {
+                    "status": "skipped",
+                    "message": f"Vector database already contains {self.get_document_count()} documents",
+                    "document_count": self.get_document_count()
+                }
+            
+            logger.info("Vector database is empty. Starting auto-vectorization from Azure Blob Storage...")
+            
+            # Check if Azure Storage connection string is configured
+            if not settings.AZURE_STORAGE_CONNECTION_STRING:
+                logger.warning("Azure Storage connection string not configured. Cannot perform auto-vectorization.")
+                return {
+                    "status": "error",
+                    "message": "Azure Storage connection string not configured"
+                }
+            
+            # Get SAS token for blob access
+            sas_token = self.blob_service.generate_sas_token()
+            if not sas_token:
+                raise Exception("Failed to generate SAS token for blob access")
+            
+            # Get list of all blobs in the container
+            blobs = await self.blob_service.list_blobs_async()
+            if not blobs:
+                logger.info("No files found in Azure Blob Storage container")
+                return {
+                    "status": "completed",
+                    "message": "No files found in Azure Blob Storage container",
+                    "files_processed": 0,
+                    "files_failed": 0,
+                    "total_chunks": 0,
+                    "total_documents": 0,
+                    "processed_files": [],
+                    "failed_files": [],
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            logger.info(f"Found {len(blobs)} files in Azure Blob Storage. Starting auto-vectorization...")
+            
+            processed_files = []
+            failed_files = []
+            total_chunks = 0
+            
+            for blob in blobs:
+                blob_name = blob.get('name', '')
+                if not blob_name:
+                    continue
+                
+                try:
+                    logger.info(f"Auto-vectorizing file {len(processed_files) + len(failed_files) + 1}/{len(blobs)}: '{blob_name}'")
+                    
+                    result = await self.vectorize_file(blob_name, sas_token)
+                    
+                    processed_files.append({
+                        "name": blob_name,
+                        "chunks": result.get('chunks_processed', 0),
+                        "size": result.get('file_size', '0')
+                    })
+                    
+                    total_chunks += result.get('chunks_processed', 0)
+                    
+                except Exception as e:
+                    logger.error(f"Failed to auto-vectorize '{blob_name}': {e}")
+                    failed_files.append({
+                        "name": blob_name,
+                        "error": str(e)
+                    })
+            
+            logger.info(f"Auto-vectorization completed: {len(processed_files)} successful, {len(failed_files)} failed, {total_chunks} total chunks")
+            
+            return {
+                "status": "completed",
+                "message": f"Auto-vectorization completed on startup. Processed {len(processed_files)} files with {total_chunks} chunks.",
+                "files_processed": len(processed_files),
+                "files_failed": len(failed_files),
+                "total_chunks": total_chunks,
+                "total_documents": len(self.documents),
+                "processed_files": processed_files,
+                "failed_files": failed_files,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error during auto-vectorization on startup: {e}")
+            return {
+                "status": "error",
+                "message": f"Error during auto-vectorization: {str(e)}",
+                "timestamp": datetime.now().isoformat()
+            }
+
+
+# Global instance for the application
+vectorization_manager = VectorizationManager()
+logger.info(f"VectorizationManager set with {vectorization_manager.get_document_count()} documents")
+
