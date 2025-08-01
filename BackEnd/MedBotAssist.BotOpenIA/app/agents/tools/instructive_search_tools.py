@@ -244,27 +244,8 @@ Respond clearly and professionally based solely on the information provided."""
                 'results': []
             }
 
-# Global instance to use in the agent - will be initialized lazily
+# Global instance to use in the agent - will be initialized lazily when needed
 instructive_search_tools = None
-
-# Initialize with the global vectorization manager
-def _get_instructive_tools():
-    """Get initialized instructive tools with the vectorization manager."""
-    global instructive_search_tools
-    if instructive_search_tools is None:
-        print("DEBUG: Creating new InstructiveSearchTools instance...")
-        instructive_search_tools = InstructiveSearchTools()
-        try:
-            from app.services.vectorization_manager import get_vectorization_manager
-            vectorization_manager = get_vectorization_manager()
-            print(f"DEBUG: Got vectorization_manager singleton with {vectorization_manager.get_document_count()} documents")
-            instructive_search_tools.set_vectorization_manager(vectorization_manager)
-            print("DEBUG: Successfully initialized instructive tools")
-        except Exception as e:
-            print(f"Warning: Could not initialize instructive tools: {e}")
-            import traceback
-            traceback.print_exc()
-    return instructive_search_tools
 
 # LangChain tools to use in the medical agent
 @tool
@@ -283,19 +264,31 @@ def search_instructive_info(query: str) -> str:
         Information found in medical instructional documents with cited sources
     """
     try:
-        # Get initialized tools instance
-        tools = _get_instructive_tools()
+        # Initialize tools instance if needed
+        global instructive_search_tools
+        if instructive_search_tools is None:
+            print("DEBUG: Creating new InstructiveSearchTools instance...")
+            instructive_search_tools = InstructiveSearchTools()
         
-        # Check if vectorization manager is available
-        if not tools.vectorization_manager:
-            return "No vectorized instructional documents available in the system."
+        # Check if vectorization manager is available and initialize if needed
+        if not instructive_search_tools.vectorization_manager:
+            print("DEBUG: No vectorization manager, attempting to get singleton...")
+            try:
+                from app.services.vectorization_manager import get_vectorization_manager
+                vectorization_manager = get_vectorization_manager()
+                print(f"DEBUG: Got vectorization_manager singleton with {vectorization_manager.get_document_count()} documents")
+                instructive_search_tools.set_vectorization_manager(vectorization_manager)
+            except Exception as e:
+                print(f"Warning: Could not get vectorization manager: {e}")
+                return "No vectorized instructional documents available in the system."
         
-        document_count = tools._get_document_count()
+        # Verify we have documents
+        document_count = instructive_search_tools._get_document_count()
         if document_count == 0:
             return "No vectorized instructional documents available in the system."
         
         # Search for documents
-        results = tools._search_documents(query, max_results=5)
+        results = instructive_search_tools._search_documents(query, max_results=5)
         
         if not results:
             return "No relevant information found in the instructional documents for your query."
@@ -322,7 +315,7 @@ QUESTION: {query}
 
 Respond clearly and professionally based solely on the information provided."""
 
-        response = tools.openai_client.chat.completions.create(
+        response = instructive_search_tools.openai_client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "system", "content": system_prompt}],
             max_tokens=500,
@@ -354,23 +347,33 @@ def get_available_instructives_list() -> str:
         List of available medical instructional documents with details
     """
     try:
-        # Get initialized tools instance
-        print("DEBUG: get_available_instructives_list called")
-        tools = _get_instructive_tools()
+        # Initialize tools instance if needed
+        global instructive_search_tools
+        if instructive_search_tools is None:
+            print("DEBUG: Creating new InstructiveSearchTools instance...")
+            instructive_search_tools = InstructiveSearchTools()
         
-        # Check if vectorization manager is available
-        if not tools.vectorization_manager:
-            print("DEBUG: Still no vectorization manager after getting tools")
-            return "No vectorization system available."
+        # Check if vectorization manager is available and initialize if needed
+        if not instructive_search_tools.vectorization_manager:
+            print("DEBUG: No vectorization manager, attempting to get singleton...")
+            try:
+                from app.services.vectorization_manager import get_vectorization_manager
+                vectorization_manager = get_vectorization_manager()
+                print(f"DEBUG: Got vectorization_manager singleton with {vectorization_manager.get_document_count()} documents")
+                instructive_search_tools.set_vectorization_manager(vectorization_manager)
+            except Exception as e:
+                print(f"Warning: Could not get vectorization manager: {e}")
+                return "No vectorization system available."
         
-        document_count = tools._get_document_count()
+        # Verify we have documents
+        document_count = instructive_search_tools._get_document_count()
         print(f"DEBUG: Document count: {document_count}")
         if document_count == 0:
             return "No instructional documents have been vectorized yet."
         
         # Get unique files from documents
         files_info = {}
-        for doc_id, doc in tools.vectorization_manager.documents.items():
+        for doc_id, doc in instructive_search_tools.vectorization_manager.documents.items():
             filename = doc.metadata.get('filename', 'unknown')
             file_type = doc.metadata.get('file_type', 'unknown')
             
