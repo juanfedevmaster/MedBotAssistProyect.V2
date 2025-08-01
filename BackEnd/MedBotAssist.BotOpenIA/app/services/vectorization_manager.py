@@ -118,6 +118,14 @@ class VectorizationManager:
         
         # Get or create collections
         self.collection = self._get_or_create_collection(self.collection_name)
+        
+        # Log collection status for debugging
+        try:
+            count = self.collection.count()
+            logger.info(f"Collection '{self.collection_name}' initialized with {count} documents")
+        except Exception as e:
+            logger.error(f"Error getting collection count: {e}")
+            logger.error("This may indicate ChromaDB initialization issues")
         self.log_collection = self._get_or_create_collection(self.log_collection_name)
         
         logger.info(f"VectorizationManager initialized with collection '{collection_name}'")
@@ -357,6 +365,7 @@ class VectorizationManager:
                 chunk_metadatas.append(chunk_metadata)
             
             # 6. Add to ChromaDB collection
+            logger.info(f"Adding {len(chunks)} chunks to ChromaDB collection for {blob_name}")
             self.collection.add(
                 ids=chunk_ids,
                 embeddings=embeddings,
@@ -364,7 +373,23 @@ class VectorizationManager:
                 metadatas=chunk_metadatas
             )
             
-            logger.info(f"Successfully vectorized {blob_name}: {len(chunks)} chunks stored")
+            # Verify the data was added
+            collection_count = self.collection.count()
+            logger.info(f"Successfully vectorized {blob_name}: {len(chunks)} chunks stored. Total collection count: {collection_count}")
+            
+            # Test query to verify data is accessible
+            try:
+                test_results = self.collection.query(
+                    query_embeddings=[embeddings[0]],
+                    n_results=1,
+                    include=['documents']
+                )
+                if test_results and test_results.get('documents') and test_results['documents'][0]:
+                    logger.info(f"Verification successful: Can query data for {blob_name}")
+                else:
+                    logger.warning(f"Verification failed: Cannot query data for {blob_name}")
+            except Exception as e:
+                logger.error(f"Verification query failed for {blob_name}: {e}")
             
             # 7. Log vectorization
             self._log_vectorization(
