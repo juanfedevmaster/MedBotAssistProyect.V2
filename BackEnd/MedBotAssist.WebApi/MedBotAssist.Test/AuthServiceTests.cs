@@ -28,10 +28,22 @@ namespace MedBotAssist.Test
             context.SaveChanges();
 
             var mockConfig = new Mock<IConfiguration>();
-            mockConfig.Setup(c => c["JwtSettings:Secret"]).Returns("mysupersecretkeymysupersecretkey");
+            // Use a base64-encoded version of your secret
+            var secret = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("mysupersecretkeymysupersecretkey"));
+            mockConfig.Setup(c => c["JwtSettings:Secret"]).Returns(secret);
+
+            var mockSection = new Mock<IConfigurationSection>();
+            mockSection.Setup(s => s.Value).Returns(secret);
+            mockConfig.Setup(c => c.GetSection("JwtSettings:Secret")).Returns(mockSection.Object);
+            mockConfig.Setup(c => c.GetSection("JwtSettings")["Secret"]).Returns(secret);
             mockConfig.Setup(c => c["JwtSettings:Issuer"]).Returns("TestIssuer");
             mockConfig.Setup(c => c["JwtSettings:Audience"]).Returns("TestAudience");
             mockConfig.Setup(c => c["JwtSettings:ExpirationMinutes"]).Returns("60"); // <-- valor numérico válido
+
+            // Mock de StorageAccount
+            mockConfig.Setup(c => c["StorageAccount:accountName"]).Returns("testaccount");
+            mockConfig.Setup(c => c["StorageAccount:accountKey"]).Returns("dGVzdGtleQ=="); // "testkey" en base64
+            mockConfig.Setup(c => c["StorageAccount:containerName"]).Returns("testcontainer");
 
             var service = new MedBotAssist.WebApi.Services.AuthService.AuthService(context, mockConfig.Object);
 

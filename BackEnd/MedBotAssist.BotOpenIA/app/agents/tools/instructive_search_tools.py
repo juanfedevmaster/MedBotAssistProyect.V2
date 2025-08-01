@@ -1,113 +1,68 @@
 """
-Tools for searching information in vectorized instructional documents
+Tools for searching information in vectorized instructional documents using in-memory storage
 """
-import os
+
 import json
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 from openai import OpenAI
-import chromadb
-from chromadb.config import Settings
 from langchain.tools import tool
 from app.core.config import settings
 from app.services.permission_context import permission_context
 
 class InstructiveSearchTools:
-    """Tools for searching information in instructional documents using vectorization"""
+    """Tools for searching information in instructional documents using in-memory vectorization"""
     
-    def __init__(self):
+    def __init__(self, vectorization_manager=None):
         self.openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        self.vectorization_manager = vectorization_manager
+        print("InstructiveSearchTools initialized with in-memory vector storage")
         
-        # Initialize ChromaDB client with proper configuration
-        try:
-            import os
-            # Ensure the directory exists
-            os.makedirs(settings.VECTOR_DB_PATH, exist_ok=True)
-            
-            # Initialize persistent client using settings path
-            self.chroma_client = chromadb.PersistentClient(
-                path=settings.VECTOR_DB_PATH,
-                settings=Settings(
-                    anonymized_telemetry=False,
-                    allow_reset=True
-                )
-            )
-            print(f"ChromaDB initialized successfully at: {settings.VECTOR_DB_PATH}")
-            
-        except Exception as e:
-            print(f"Error: ChromaDB initialization failed: {e}")
-            # Don't fall back to in-memory - we need persistence
-            raise RuntimeError(f"Vector database initialization failed: {str(e)}")
-        
-        # Get or create collection
-        try:
-            self.collection = self.chroma_client.get_collection(name="medical_documents")
-        except Exception:
-            # If collection doesn't exist, create it
-            try:
-                self.collection = self.chroma_client.create_collection(
-                    name="medical_documents",
-                    metadata={"description": "Vectorized medical documents"}
-                )
-            except Exception as e:
-                print(f"Warning: Could not create collection: {e}")
-                self.collection = None
+    def set_vectorization_manager(self, vectorization_manager):
+        """Set the vectorization manager instance."""
+        self.vectorization_manager = vectorization_manager
+        print(f"VectorizationManager set with {vectorization_manager.get_document_count()} documents")
     
-    def _generate_embedding(self, text: str) -> List[float]:
-        """Generates embedding for a text using OpenAI"""
-        try:
-            response = self.openai_client.embeddings.create(
-                model="text-embedding-3-small",
-                input=text
-            )
-            return response.data[0].embedding
-        except Exception as e:
-            print(f"Error generating embedding: {e}")
+    def _get_document_count(self) -> int:
+        """Get the number of vectorized documents."""
+        if not self.vectorization_manager:
+            return 0
+        return self.vectorization_manager.get_document_count()
+    
+    def _search_documents(self, query: str, max_results: int = 5) -> List[Dict[str, Any]]:
+        """Search for documents similar to the query."""
+        if not self.vectorization_manager:
+            print(f"DEBUG: No vectorization manager available")
             return []
-    
-    def _format_search_results(self, results: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Formats ChromaDB search results"""
-        formatted_results = []
         
-        if not results or not results.get('documents'):
-            return formatted_results
+        if self.vectorization_manager.get_document_count() == 0:
+            print(f"DEBUG: No documents available in vectorization manager")
+            return []
         
-        documents = results['documents'][0] if results['documents'] else []
-        metadatas = results['metadatas'][0] if results.get('metadatas') else []
-        distances = results['distances'][0] if results.get('distances') else []
-        
-        for i, doc in enumerate(documents):
-            metadata = metadatas[i] if i < len(metadatas) else {}
-            distance = distances[i] if i < len(distances) else 1.0
-            similarity = 1 - distance  # Convert distance to similarity
+        try:
+            # Generate embedding for the query
+            response = self.openai_client.embeddings.create(
+                model=settings.OPENAI_EMBEDDING_MODEL,
+                input=[query]
+            )
             
-            formatted_results.append({
-                'content': doc,
-                'filename': metadata.get('filename', 'unknown'),
-                'file_type': metadata.get('file_type', 'unknown'),
-                'chunk_index': metadata.get('chunk_index', 0),
-                'similarity_score': round(similarity, 3),
-                'metadata': metadata
-            })
-        
-        return formatted_results
-    
-    def search_instructive_information(
-        self, 
-        query: str, 
-        max_results: int = 5,
-        min_similarity: float = 0.2  # Lowered threshold to accommodate distance-based similarity
-    ) -> Dict[str, Any]:
-        """
-        Searches for specific information in vectorized instructional documents
-        
-        Args:
-            query: Question or search about instructional documents
-            max_results: Maximum number of results
-            min_similarity: Minimum required similarity (0-1)
-        
-        Returns:
-            Dict with search results and generated response
-        """
+            query_embedding = response.data[0].embedding
+            print(f"DEBUG: Generated query embedding with {len(query_embedding)} dimensions")
+            
+            # Search for similar documents
+            results = self.vectorization_manager.search_similar(
+                query_embedding=query_embedding,
+                top_k=max_results
+            )
+            
+            print(f"DEBUG: Found {len(results)} similar documents")
+            return results
+            
+        except Exception as e:
+            print(f"ERROR: Error searching documents: {e}")
+            return []
+
+    def search_instructive_information(self, query: str, max_results: int = 5, min_similarity: float = 0.2) -> Dict[str, Any]:
+        """Search for specific information in vectorized instructional documents."""
         # Validate permissions
         if not permission_context.has_permission('UseAgent'):
             return {
@@ -117,36 +72,26 @@ class InstructiveSearchTools:
             }
         
         try:
-            # Verify that collection is available
-            if not self.collection:
+            if not self.vectorization_manager:
                 return {
                     'success': False,
                     'error': 'Vectorized database not available',
                     'results': []
                 }
             
-            # Generate embedding for the query
-            query_embedding = self._generate_embedding(query)
-            if not query_embedding:
+            if self.vectorization_manager.get_document_count() == 0:
                 return {
                     'success': False,
-                    'error': 'Could not generate embedding for the query',
+                    'error': 'No documents found in vectorized database',
                     'results': []
                 }
             
-            # Search in ChromaDB
-            search_results = self.collection.query(
-                query_embeddings=[query_embedding],
-                n_results=max_results,
-                include=['documents', 'metadatas', 'distances']
-            )
-            
-            # Format results
-            formatted_results = self._format_search_results(search_results)
+            # Search for documents
+            results = self._search_documents(query, max_results)
             
             # Filter by minimum similarity
             filtered_results = [
-                result for result in formatted_results 
+                result for result in results 
                 if result['similarity_score'] >= min_similarity
             ]
             
@@ -159,8 +104,36 @@ class InstructiveSearchTools:
                     'total_found': 0
                 }
             
-            # Generate contextual response using the results
-            contextual_response = self._generate_contextual_response(query, filtered_results)
+            # Generate contextual response
+            context_parts = []
+            sources = set()
+            
+            for result in filtered_results[:3]:  # Top 3 results
+                content = result['content']
+                filename = result['metadata'].get('filename', 'unknown')
+                sources.add(filename)
+                context_parts.append(f"From {filename}: {content}")
+            
+            combined_context = "\n\n".join(context_parts)
+            
+            # Generate response using OpenAI
+            system_prompt = f"""You're a specialized medical assistant. Answer the question based exclusively on the information provided.
+
+INSTRUCTIONAL CONTEXT:
+{combined_context}
+
+QUESTION: {query}
+
+Respond clearly and professionally based solely on the information provided."""
+
+            response = self.openai_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "system", "content": system_prompt}],
+                max_tokens=500,
+                temperature=0.3
+            )
+            
+            contextual_response = response.choices[0].message.content.strip()
             
             return {
                 'success': True,
@@ -168,7 +141,7 @@ class InstructiveSearchTools:
                 'response': contextual_response,
                 'results': filtered_results,
                 'total_found': len(filtered_results),
-                'sources': list(set([r['filename'] for r in filtered_results]))
+                'sources': list(sources)
             }
             
         except Exception as e:
@@ -177,58 +150,11 @@ class InstructiveSearchTools:
                 'error': f'Error searching instructional documents: {str(e)}',
                 'results': []
             }
-    
-    def _generate_contextual_response(self, query: str, results: List[Dict[str, Any]]) -> str:
-        """Generates a contextual response based on the found results"""
-        try:
-            # Combine content from the best results
-            context_parts = []
-            for result in results[:3]:  # Top 3 results
-                context_parts.append(f"From {result['filename']}: {result['content']}")
-            
-            combined_context = "\n\n".join(context_parts)
-            
-            # Prompt to generate contextual response
-            system_prompt = """You're a specialized medical assistant. Your task is to answer questions based exclusively on the information provided in the medical instruction documents.
 
-INSTRUCTIONS:
-
-1. Respond only with information found in the provided context.
-2. If the information is not present in the context, state that you do not have that specific information.
-3. Cite sources when relevant.
-4. Maintain a professional and medical tone.
-5. If there are procedures, list them clearly.
-6. If there are contraindications or warnings, highlight them.
-
-INSTRUCTIONAL CONTEXT:
-{context}
-
-QUESTION: {query}
-
-Respond clearly, accurately, and professionally based solely on the information provided."""
-
-            response = self.openai_client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {
-                        "role": "system", 
-                        "content": system_prompt.format(context=combined_context, query=query)
-                    }
-                ],
-                max_tokens=500,
-                temperature=0.3
-            )
-            
-            return response.choices[0].message.content.strip()
-            
-        except Exception as e:
-            return f"Relevant information was found, but there was an error generating the response: {str(e)}"
-    
     def get_available_instructives(self) -> Dict[str, Any]:
         """Gets list of available instructional documents in the database"""
         try:
-            # Verify that collection is available
-            if not self.collection:
+            if not self.vectorization_manager:
                 return {
                     'success': True,
                     'instructives': [],
@@ -236,26 +162,20 @@ Respond clearly, accurately, and professionally based solely on the information 
                     'message': 'Vectorized database not available'
                 }
             
-            # Get some documents to extract unique metadata
-            sample_results = self.collection.query(
-                query_embeddings=[self._generate_embedding("medical")],
-                n_results=100,
-                include=['metadatas']
-            )
-            
-            if not sample_results or not sample_results.get('metadatas'):
+            document_count = self.vectorization_manager.get_document_count()
+            if document_count == 0:
                 return {
                     'success': True,
                     'instructives': [],
                     'total_files': 0,
-                    'message': 'No vectorized instructional documents available'
+                    'message': 'No documents in vectorized database'
                 }
             
-            # Extract unique files
+            # Get unique files from documents
             files_info = {}
-            for metadata in sample_results['metadatas'][0]:
-                filename = metadata.get('filename', 'unknown')
-                file_type = metadata.get('file_type', 'unknown')
+            for doc_id, doc in self.vectorization_manager.documents.items():
+                filename = doc.metadata.get('filename', 'unknown')
+                file_type = doc.metadata.get('file_type', 'unknown')
                 
                 if filename not in files_info:
                     files_info[filename] = {
@@ -280,32 +200,29 @@ Respond clearly, accurately, and professionally based solely on the information 
                 'error': f'Error getting list of instructional documents: {str(e)}',
                 'instructives': []
             }
-    
+
     def search_by_filename(self, filename: str, query: str = "") -> Dict[str, Any]:
         """Searches for information in a specific file"""
         try:
-            # If there's no specific query, search for all document content
+            if not self.vectorization_manager:
+                return {
+                    'success': False,
+                    'error': 'Vectorization system not available'
+                }
+            
             if not query:
                 query = "document content"
             
-            query_embedding = self._generate_embedding(query)
-            if not query_embedding:
-                return {
-                    'success': False,
-                    'error': 'Could not generate embedding for the query'
-                }
+            # Search all documents and filter by filename
+            results = self._search_documents(query, max_results=20)
             
-            # Search with filename filter
-            search_results = self.collection.query(
-                query_embeddings=[query_embedding],
-                n_results=20,
-                include=['documents', 'metadatas', 'distances'],
-                where={"filename": filename}
-            )
+            # Filter by filename
+            filtered_results = [
+                result for result in results 
+                if result['metadata'].get('filename') == filename
+            ]
             
-            formatted_results = self._format_search_results(search_results)
-            
-            if not formatted_results:
+            if not filtered_results:
                 return {
                     'success': True,
                     'message': f'File "{filename}" not found in the vectorized database',
@@ -316,8 +233,8 @@ Respond clearly, accurately, and professionally based solely on the information 
                 'success': True,
                 'filename': filename,
                 'query': query,
-                'results': formatted_results,
-                'total_chunks': len(formatted_results)
+                'results': filtered_results,
+                'total_chunks': len(filtered_results)
             }
             
         except Exception as e:
@@ -327,8 +244,8 @@ Respond clearly, accurately, and professionally based solely on the information 
                 'results': []
             }
 
-# Global instance to use in the agent
-instructive_search_tools = InstructiveSearchTools()
+# Global instance to use in the agent - will be initialized lazily when needed
+instructive_search_tools = None
 
 # LangChain tools to use in the medical agent
 @tool
@@ -347,26 +264,73 @@ def search_instructive_info(query: str) -> str:
         Information found in medical instructional documents with cited sources
     """
     try:
-        result = instructive_search_tools.search_instructive_information(
-            query=query, 
-            max_results=5
-        )
+        # Initialize tools instance if needed
+        global instructive_search_tools
+        if instructive_search_tools is None:
+            print("DEBUG: Creating new InstructiveSearchTools instance...")
+            instructive_search_tools = InstructiveSearchTools()
         
-        if not result['success']:
-            return f"Error: {result.get('error', 'Unknown error')}"
+        # Check if vectorization manager is available and initialize if needed
+        if not instructive_search_tools.vectorization_manager:
+            print("DEBUG: No vectorization manager, attempting to get singleton...")
+            try:
+                from app.services.vectorization_manager import get_vectorization_manager
+                vectorization_manager = get_vectorization_manager()
+                print(f"DEBUG: Got vectorization_manager singleton with {vectorization_manager.get_document_count()} documents")
+                instructive_search_tools.set_vectorization_manager(vectorization_manager)
+            except Exception as e:
+                print(f"Warning: Could not get vectorization manager: {e}")
+                return "No vectorized instructional documents available in the system."
         
-        if result['total_found'] == 0:
+        # Verify we have documents
+        document_count = instructive_search_tools._get_document_count()
+        if document_count == 0:
+            return "No vectorized instructional documents available in the system."
+        
+        # Search for documents
+        results = instructive_search_tools._search_documents(query, max_results=5)
+        
+        if not results:
             return "No relevant information found in the instructional documents for your query."
         
-        response = result['response']
-        sources = ", ".join(result['sources'])
+        # Generate contextual response
+        context_parts = []
+        sources = set()
+        
+        for result in results[:3]:  # Top 3 results
+            content = result['content']
+            filename = result['metadata'].get('filename', 'unknown')
+            sources.add(filename)
+            context_parts.append(f"From {filename}: {content}")
+        
+        combined_context = "\n\n".join(context_parts)
+        
+        # Generate response using OpenAI
+        system_prompt = f"""You're a specialized medical assistant. Answer the question based exclusively on the information provided.
+
+INSTRUCTIONAL CONTEXT:
+{combined_context}
+
+QUESTION: {query}
+
+Respond clearly and professionally based solely on the information provided."""
+
+        response = instructive_search_tools.openai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "system", "content": system_prompt}],
+            max_tokens=500,
+            temperature=0.3
+        )
+        
+        contextual_response = response.choices[0].message.content.strip()
+        sources_str = ", ".join(sources)
         
         return f"""**Instructional Information:**
 
-{response}
+{contextual_response}
 
-**Sources consulted:** {sources}
-**Documents found:** {result['total_found']}"""
+**Sources consulted:** {sources_str}
+**Documents found:** {len(results)}"""
         
     except Exception as e:
         return f"Error searching instructional documents: {str(e)}"
@@ -383,21 +347,58 @@ def get_available_instructives_list() -> str:
         List of available medical instructional documents with details
     """
     try:
-        result = instructive_search_tools.get_available_instructives()
+        # Initialize tools instance if needed
+        global instructive_search_tools
+        if instructive_search_tools is None:
+            print("DEBUG: Creating new InstructiveSearchTools instance...")
+            instructive_search_tools = InstructiveSearchTools()
         
-        if not result['success']:
-            return f"Error: {result.get('error', 'Unknown error')}"
+        # Check if vectorization manager is available and initialize if needed
+        if not instructive_search_tools.vectorization_manager:
+            print("DEBUG: No vectorization manager, attempting to get singleton...")
+            try:
+                from app.services.vectorization_manager import get_vectorization_manager
+                vectorization_manager = get_vectorization_manager()
+                print(f"DEBUG: Got vectorization_manager singleton with {vectorization_manager.get_document_count()} documents")
+                instructive_search_tools.set_vectorization_manager(vectorization_manager)
+            except Exception as e:
+                print(f"Warning: Could not get vectorization manager: {e}")
+                return "No vectorization system available."
         
-        if result['total_files'] == 0:
-            return "No vectorized instructional documents available in the system."
+        # Verify we have documents
+        document_count = instructive_search_tools._get_document_count()
+        print(f"DEBUG: Document count: {document_count}")
+        if document_count == 0:
+            return "No instructional documents have been vectorized yet."
         
-        instructives_text = "**Available Instructional Documents:**\n\n"
-        for doc in result['instructives']:
-            instructives_text += f"• **{doc['filename']}** ({doc['file_type']}) - {doc['chunks_count']} sections\n"
+        # Get unique files from documents
+        files_info = {}
+        for doc_id, doc in instructive_search_tools.vectorization_manager.documents.items():
+            filename = doc.metadata.get('filename', 'unknown')
+            file_type = doc.metadata.get('file_type', 'unknown')
+            
+            if filename not in files_info:
+                files_info[filename] = {
+                    'filename': filename,
+                    'file_type': file_type,
+                    'chunks_count': 0
+                }
+            files_info[filename]['chunks_count'] += 1
         
-        instructives_text += f"\n**Total:** {result['total_files']} instructional documents available"
+        if not files_info:
+            return "No instructional documents found in the system."
         
-        return instructives_text
+        # Format the response
+        response_lines = ["**Available Instructional Documents:**\n"]
+        
+        for file_info in files_info.values():
+            response_lines.append(
+                f"- **{file_info['filename']}** ({file_info['file_type']}) - {file_info['chunks_count']} chunks"
+            )
+        
+        response_lines.append(f"\n**Total:** {len(files_info)} documents with {document_count} total chunks")
+        
+        return "\n".join(response_lines)
         
     except Exception as e:
         return f"Error getting list of instructional documents: {str(e)}"

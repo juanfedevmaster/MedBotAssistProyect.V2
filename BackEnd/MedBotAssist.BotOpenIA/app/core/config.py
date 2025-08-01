@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     DB_DATABASE: str = "MedBotAssistDB"
     DB_USER: str = "medicaluser"
     DB_PASSWORD: str = "Admin123!"
-    DB_DRIVER: str = "ODBC Driver 18 for SQL Server"  # Try version 18 first, fallback to 17
+    DB_DRIVER: str = "ODBC Driver 17 for SQL Server"  # Use version 17 which is more widely available
     
     # JWT Configuration
     JWT_SECRET: str = os.getenv("JWT_SECRET", "")
@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     # Azure Blob Storage Configuration
     BLOB_STORAGE_BASE_URL: str = os.getenv("BLOB_STORAGE_BASE_URL", "https://strmedbotassist.blob.core.windows.net")
     BLOB_CONTAINER_NAME: str = os.getenv("BLOB_CONTAINER_NAME", "instructions-files")
+    AZURE_STORAGE_CONNECTION_STRING: str = os.getenv("AZURE_STORAGE_CONNECTION_STRING", "")
+    AUTO_VECTORIZE_ON_STARTUP: bool = os.getenv("AUTO_VECTORIZE_ON_STARTUP", "true").lower() == "true"
     
     # Vectorization Configuration
     VECTOR_DB_PATH: str = os.getenv("VECTOR_DB_PATH", "./chroma_db")

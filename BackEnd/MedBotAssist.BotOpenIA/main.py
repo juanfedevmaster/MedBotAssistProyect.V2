@@ -2,6 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import agent, blob, vectorization
 import uvicorn
+import asyncio
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Create FastAPI instance
 app = FastAPI(
@@ -49,6 +55,41 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "message": "API is operational"}
+
+@app.on_event("startup")
+async def startup_event():
+    """
+    Event handler that runs when the FastAPI application starts.
+    Performs auto-vectorization if the vector database is empty.
+    """
+    logger.info("FastAPI application starting up...")
+    
+    try:
+        # Import here to avoid circular imports
+        from app.services.vectorization_manager import get_vectorization_manager
+        
+        # Get the singleton instance
+        vectorization_manager = get_vectorization_manager()
+        
+        # Check if auto-vectorization should run
+        result = await vectorization_manager.auto_vectorize_on_startup()
+        
+        if result["status"] == "completed":
+            files_processed = result.get('files_processed', 0)
+            total_chunks = result.get('total_chunks', 0)
+            logger.info(f"✅ Auto-vectorization completed: {files_processed} files processed, {total_chunks} chunks created")
+        elif result["status"] == "skipped":
+            logger.info(f"⏭️ Auto-vectorization skipped: {result['message']}")
+        elif result["status"] == "disabled":
+            logger.info("🔒 Auto-vectorization is disabled in configuration")
+        else:
+            logger.warning(f"⚠️ Auto-vectorization issue: {result['message']}")
+            
+    except Exception as e:
+        logger.error(f"❌ Error during startup auto-vectorization: {e}")
+        # Don't fail the startup, just log the error
+    
+    logger.info("FastAPI application startup completed")
 
 if __name__ == "__main__":
     # For development - includes hot reload and better logging

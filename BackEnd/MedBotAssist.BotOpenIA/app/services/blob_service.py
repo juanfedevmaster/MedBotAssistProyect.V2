@@ -12,9 +12,17 @@ from urllib.parse import urljoin, quote
 from fastapi import HTTPException, status
 from app.core.config import settings
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 import mimetypes
 from io import BytesIO
+
+# Azure Storage imports
+try:
+    from azure.storage.blob import BlobServiceClient, generate_blob_sas, generate_container_sas, BlobSasPermissions, ContainerSasPermissions
+    from azure.core.exceptions import AzureError
+    AZURE_AVAILABLE = True
+except ImportError:
+    AZURE_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -482,3 +490,89 @@ class BlobService:
             "timeout_seconds": self.timeout,
             "service_type": "Azure Blob Storage"
         }
+
+    def generate_sas_token(self) -> Optional[str]:
+        """
+        Generate a SAS token for blob storage access using Azure Storage SDK.
+        
+        Returns:
+            SAS token string or None if not available
+        """
+        try:
+            if not AZURE_AVAILABLE:
+                logger.error("Azure Storage SDK not available. Install azure-storage-blob package.")
+                return None
+            
+            if not settings.AZURE_STORAGE_CONNECTION_STRING:
+                logger.error("Azure Storage connection string not configured")
+                return None
+            
+            # Create blob service client
+            blob_service_client = BlobServiceClient.from_connection_string(
+                settings.AZURE_STORAGE_CONNECTION_STRING
+            )
+            
+            # Generate SAS token for container with read and list permissions for 1 hour
+            sas_token = generate_container_sas(
+                account_name=blob_service_client.account_name,
+                container_name=self.container_name,
+                account_key=blob_service_client.credential.account_key,
+                permission=ContainerSasPermissions(read=True, list=True),
+                expiry=datetime.utcnow() + timedelta(hours=1)
+            )
+            
+            logger.info("Generated SAS token for auto-vectorization")
+            return sas_token
+            
+        except Exception as e:
+            logger.error(f"Error generating SAS token: {e}")
+            return None
+    
+    async def list_blobs_async(self) -> List[Dict[str, Any]]:
+        """
+        List all blobs in the container using Azure Storage SDK.
+        
+        Returns:
+            List of blob metadata dictionaries
+        """
+        try:
+            if not AZURE_AVAILABLE:
+                logger.error("Azure Storage SDK not available. Install azure-storage-blob package.")
+                return []
+            
+            if not settings.AZURE_STORAGE_CONNECTION_STRING:
+                logger.error("Azure Storage connection string not configured")
+                return []
+            
+            # Create blob service client
+            blob_service_client = BlobServiceClient.from_connection_string(
+                settings.AZURE_STORAGE_CONNECTION_STRING
+            )
+            
+            # Get container client
+            container_client = blob_service_client.get_container_client(self.container_name)
+            
+            # List all blobs (using sync iterator, run in thread pool)
+            import asyncio
+            def _list_blobs():
+                blobs = []
+                for blob in container_client.list_blobs():
+                    blob_info = {
+                        'name': blob.name,
+                        'size': blob.size,
+                        'last_modified': blob.last_modified.isoformat() if blob.last_modified else None,
+                        'content_type': blob.content_settings.content_type if blob.content_settings else None,
+                        'etag': blob.etag
+                    }
+                    blobs.append(blob_info)
+                return blobs
+            
+            # Run the sync operation in a thread pool
+            blobs = await asyncio.get_event_loop().run_in_executor(None, _list_blobs)
+            
+            logger.info(f"Listed {len(blobs)} blobs from container '{self.container_name}'")
+            return blobs
+            
+        except Exception as e:
+            logger.error(f"Error listing blobs: {e}")
+            return []

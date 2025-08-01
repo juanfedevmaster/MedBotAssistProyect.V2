@@ -8,6 +8,7 @@ All endpoints require JWT authentication with UseAgent permission.
 from fastapi import APIRouter, HTTPException, status, Query, Header
 from typing import Optional, Dict, Any
 import logging
+from datetime import datetime
 
 from app.services.vectorization_manager import VectorizationManager
 from app.services.jwt_service import JWTService
@@ -17,9 +18,20 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # Initialize services
-vectorization_manager = VectorizationManager()
+from app.services.vectorization_manager import get_vectorization_manager
+vectorization_manager = get_vectorization_manager()
 jwt_service = JWTService()
-instructive_search = InstructiveSearchTools()
+
+# Initialize instructive search tools - will be initialized lazily when first needed
+from app.agents.tools.instructive_search_tools import InstructiveSearchTools
+
+def get_instructive_tools() -> InstructiveSearchTools:
+    """Get initialized instructive tools with the vectorization manager."""
+    global _instructive_tools_instance
+    if '_instructive_tools_instance' not in globals():
+        _instructive_tools_instance = InstructiveSearchTools()
+        _instructive_tools_instance.set_vectorization_manager(vectorization_manager)
+    return _instructive_tools_instance
 
 def validate_jwt_and_permissions(authorization: str) -> Dict[str, Any]:
     """
@@ -172,19 +184,12 @@ async def clear_all_vectors(
         user_info = validate_jwt_and_permissions(authorization)
         logger.info(f"API request to clear all vectors by user '{user_info['username']}'")
         
-        # Get current counts before deletion
-        initial_vectors = vectorization_manager.collection.count()
-        initial_logs = vectorization_manager.log_collection.count()
+        # Get current counts before deletion (for in-memory storage)
+        initial_vectors = vectorization_manager.get_document_count()
+        initial_logs = len(vectorization_manager.vectorization_log)
         
-        # Clear vectors
-        vector_results = vectorization_manager.collection.get()
-        if vector_results['ids']:
-            vectorization_manager.collection.delete(ids=vector_results['ids'])
-        
-        # Clear logs
-        log_results = vectorization_manager.log_collection.get()
-        if log_results['ids']:
-            vectorization_manager.log_collection.delete(ids=log_results['ids'])
+        # Clear all documents and logs from memory
+        vectorization_manager.clear_all_documents()
         
         result = {
             "status": "success",
@@ -192,7 +197,7 @@ async def clear_all_vectors(
             "vectors_deleted": initial_vectors,
             "logs_deleted": initial_logs,
             "requested_by": user_info["username"],
-            "timestamp": vectorization_manager._get_current_timestamp()
+            "timestamp": datetime.now().isoformat()
         }
         
         logger.info(f"Cleared {initial_vectors} vectors and {initial_logs} logs by '{user_info['username']}'")
@@ -265,7 +270,8 @@ async def search_instructives(
         user_info = validate_jwt_and_permissions(authorization)
         
         # Use the instructive search tools
-        result = instructive_search.search_instructive_information(
+        instructive_tools = get_instructive_tools()
+        result = instructive_tools.search_instructive_information(
             query=query,
             max_results=max_results,
             min_similarity=min_similarity
@@ -318,7 +324,8 @@ async def get_available_instructives(
         # Validate JWT and permissions
         user_info = validate_jwt_and_permissions(authorization)
         
-        result = instructive_search.get_available_instructives()
+        instructive_tools = get_instructive_tools()
+        result = instructive_tools.get_available_instructives()
         result["requested_by"] = user_info["username"]
         
         logger.info(f"Retrieved {result.get('total_files', 0)} available instructives for '{user_info['username']}'")
@@ -369,7 +376,8 @@ async def search_by_filename(
         # Validate JWT and permissions
         user_info = validate_jwt_and_permissions(authorization)
         
-        result = instructive_search.search_by_filename(filename=filename, query=query)
+        instructive_tools = get_instructive_tools()
+        result = instructive_tools.search_by_filename(filename=filename, query=query)
         result["requested_by"] = user_info["username"]
         
         logger.info(f"Search in file '{filename}' with query '{query}' by '{user_info['username']}' returned {result.get('total_chunks', 0)} chunks")
