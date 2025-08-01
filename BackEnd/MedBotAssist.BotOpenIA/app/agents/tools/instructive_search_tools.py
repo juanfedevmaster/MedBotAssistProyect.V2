@@ -126,9 +126,28 @@ class InstructiveSearchTools:
         try:
             # Verify that collection is available
             if not self.collection:
+                print("DEBUG: Collection is None")
                 return {
                     'success': False,
                     'error': 'Vectorized database not available',
+                    'results': []
+                }
+            
+            # Check collection count for debugging
+            try:
+                count = self.collection.count()
+                print(f"DEBUG: Collection has {count} documents")
+                if count == 0:
+                    return {
+                        'success': False,
+                        'error': 'No documents found in vectorized database',
+                        'results': []
+                    }
+            except Exception as e:
+                print(f"DEBUG: Error getting collection count: {e}")
+                return {
+                    'success': False,
+                    'error': f'Error accessing vectorized database: {str(e)}',
                     'results': []
                 }
             
@@ -236,11 +255,32 @@ Respond clearly, accurately, and professionally based solely on the information 
         try:
             # Verify that collection is available
             if not self.collection:
+                print("DEBUG: get_available_instructives - Collection is None")
                 return {
                     'success': True,
                     'instructives': [],
                     'total_files': 0,
                     'message': 'Vectorized database not available'
+                }
+            
+            # Check collection count
+            try:
+                count = self.collection.count()
+                print(f"DEBUG: get_available_instructives - Collection has {count} documents")
+                if count == 0:
+                    return {
+                        'success': True,
+                        'instructives': [],
+                        'total_files': 0,
+                        'message': 'No documents in vectorized database'
+                    }
+            except Exception as e:
+                print(f"DEBUG: get_available_instructives - Error getting count: {e}")
+                return {
+                    'success': True,
+                    'instructives': [],
+                    'total_files': 0,
+                    'message': f'Error accessing database: {str(e)}'
                 }
             
             # Get some documents to extract unique metadata
@@ -249,6 +289,8 @@ Respond clearly, accurately, and professionally based solely on the information 
                 n_results=100,
                 include=['metadatas']
             )
+            
+            print(f"DEBUG: get_available_instructives - Query returned: {sample_results}")
             
             if not sample_results or not sample_results.get('metadatas'):
                 return {
