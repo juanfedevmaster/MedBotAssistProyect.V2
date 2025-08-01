@@ -2,32 +2,22 @@
 Vectorization Manager for MedBot Assistant
 
 This service handles vectorization of files from Azure Blob Storage using OpenAI embeddings
-and ChromaDB for storage and metadata management.
+and in-memory vector storage for fast retrieval.
 """
 
-# SQLite fix for Azure App Service BEFORE any other imports
-try:
-    import sqlite_fix
-except ImportError:
-    pass
-
 from typing import List, Dict, Any, Optional, Tuple
-import asyncio
 import logging
 from datetime import datetime
-import hashlib
-import mimetypes
 from io import BytesIO
-import uuid
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
 
 # Document processing
 import PyPDF2
 import docx
 from bs4 import BeautifulSoup
 
-# Vector database and embeddings
-import chromadb
-from chromadb.config import Settings as ChromaSettings
+# OpenAI embeddings
 from openai import AsyncOpenAI
 
 # Project imports
@@ -37,352 +27,87 @@ from fastapi import HTTPException, status
 
 logger = logging.getLogger(__name__)
 
+class VectorInMemoryDocument:
+    """Represents a vectorized document chunk in memory."""
+    
+    def __init__(self, id: str, content: str, embedding: List[float], metadata: Dict[str, Any]):
+        self.id = id
+        self.content = content
+        self.embedding = np.array(embedding)
+        self.metadata = metadata
+
 class VectorizationManager:
     """
-    Manages vectorization of files from Azure Blob Storage using OpenAI embeddings and ChromaDB.
-    
-    Features:
-    - File download from Azure Blob Storage
-    - Text extraction from various file types
-    - Document chunking and vectorization
-    - Metadata management and deduplication
-    - URL generation for file access
+    Manages vectorization of files from Azure Blob Storage using OpenAI embeddings 
+    and in-memory vector storage for fast retrieval.
     """
     
-    def __init__(self, collection_name: str = None, chunk_size: int = None, chunk_overlap: int = None):
+    def __init__(self, chunk_size: int = None, chunk_overlap: int = None):
         """
-        Initialize the VectorizationManager.
+        Initialize the VectorizationManager with in-memory storage.
         
         Args:
-            collection_name: Name of the ChromaDB collection for document vectors
             chunk_size: Size of text chunks for vectorization
             chunk_overlap: Overlap between chunks
         """
-        self.collection_name = collection_name or settings.DEFAULT_COLLECTION_NAME
-        self.log_collection_name = "vectorization_log"
         self.chunk_size = chunk_size or settings.CHUNK_SIZE
         self.chunk_overlap = chunk_overlap or settings.CHUNK_OVERLAP
+        
+        # In-memory storage for vectorized documents
+        self.documents: Dict[str, VectorInMemoryDocument] = {}
+        self.vectorization_log: Dict[str, Dict[str, Any]] = {}
         
         # Initialize services
         self.blob_service = BlobService()
         self.openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         
-        # Initialize ChromaDB client with environment detection
-        try:
-            import os
-            
-            # Detect if running in Azure App Service
-            is_azure = os.environ.get('WEBSITE_SITE_NAME') is not None
-            
-            if is_azure:
-                # Azure App Service configuration
-                azure_db_path = "/home/site/wwwroot/chroma_db"
-                logger.info(f"Azure environment detected. Using path: {azure_db_path}")
-                
-                # Ensure the directory exists
-                os.makedirs(azure_db_path, exist_ok=True)
-                
-                # Use chromadb.Client with Settings for Azure
-                from chromadb.config import Settings
-                self.chroma_client = chromadb.Client(Settings(
-                    persist_directory=azure_db_path,
-                    anonymized_telemetry=False
-                ))
-                logger.info(f"ChromaDB initialized for Azure App Service at: {azure_db_path}")
-                
-            else:
-                # Local development configuration
-                logger.info(f"Local environment detected. Using path: {settings.VECTOR_DB_PATH}")
-                
-                # Ensure the directory exists
-                os.makedirs(settings.VECTOR_DB_PATH, exist_ok=True)
-                
-                # Use PersistentClient for local development
-                self.chroma_client = chromadb.PersistentClient(
-                    path=settings.VECTOR_DB_PATH,
-                    settings=ChromaSettings(
-                        anonymized_telemetry=False,
-                        allow_reset=True
-                    )
-                )
-                logger.info(f"ChromaDB initialized for local development at: {settings.VECTOR_DB_PATH}")
-            
-        except Exception as e:
-            logger.error(f"ChromaDB client initialization failed: {e}")
-            logger.error("This will cause vectorization to fail. Check directory permissions and disk space.")
-            # Don't fall back to in-memory - this breaks the system
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Vector database initialization failed: {str(e)}"
-            )
-        
-        # Get or create collections
-        self.collection = self._get_or_create_collection(self.collection_name)
-        
-        # Log collection status for debugging
-        try:
-            count = self.collection.count()
-            logger.info(f"Collection '{self.collection_name}' initialized with {count} documents")
-        except Exception as e:
-            logger.error(f"Error getting collection count: {e}")
-            logger.error("This may indicate ChromaDB initialization issues")
-        self.log_collection = self._get_or_create_collection(self.log_collection_name)
-        
-        logger.info(f"VectorizationManager initialized with collection '{self.collection_name}'")
-        
-        # Comprehensive debug logging for collection state
-        try:
-            all_collections = self.chroma_client.list_collections()
-            logger.info(f"DEBUG: All available collections: {[c.name for c in all_collections]}")
-            
-            main_count = self.collection.count()
-            logger.info(f"DEBUG: Main collection '{self.collection_name}' document count: {main_count}")
-            
-            # Test adding and retrieving a sample document to verify persistence
-            test_id = f"test_document_{datetime.now().timestamp()}"
-            try:
-                self.collection.add(
-                    ids=[test_id],
-                    documents=["Test document for persistence verification"],
-                    metadatas=[{"test": True, "timestamp": datetime.now().isoformat()}]
-                )
-                logger.info(f"DEBUG: Successfully added test document {test_id}")
-                
-                # Immediately verify the document exists
-                verification_count = self.collection.count()
-                logger.info(f"DEBUG: Collection count after test add: {verification_count}")
-                
-                # Try to retrieve the test document
-                test_results = self.collection.get(ids=[test_id])
-                if test_results and test_results.get('documents'):
-                    logger.info(f"DEBUG: Successfully retrieved test document: {test_results['documents'][0][:50]}...")
-                    # Clean up test document
-                    self.collection.delete(ids=[test_id])
-                    logger.info(f"DEBUG: Test document cleaned up. Final count: {self.collection.count()}")
-                else:
-                    logger.error(f"DEBUG: Failed to retrieve test document {test_id}")
-                    
-            except Exception as test_e:
-                logger.error(f"DEBUG: Test document operation failed: {test_e}")
-                
-        except Exception as debug_e:
-            logger.error(f"DEBUG: Collection debugging failed: {debug_e}")
+        logger.info("VectorizationManager initialized with in-memory vector storage")
     
-    def _get_or_create_collection(self, name: str):
-        """Get or create a ChromaDB collection compatible with OpenAI embeddings."""
-        try:
-            collection = self.chroma_client.get_collection(name=name)
-            logger.info(f"Retrieved existing collection: {name}")
-            
-            # Test compatibility with OpenAI embeddings (1536 dimensions)
-            # Try to add a test embedding to check dimension compatibility
-            try:
-                test_embedding = [0.0] * 1536  # OpenAI text-embedding-3-small dimensions
-                test_id = f"dimension_test_{datetime.now().timestamp()}"
-                
-                collection.add(
-                    ids=[test_id],
-                    embeddings=[test_embedding],
-                    documents=["Dimension compatibility test"],
-                    metadatas=[{"test": True}]
-                )
-                # If successful, clean up and use existing collection
-                collection.delete(ids=[test_id])
-                logger.info(f"Collection '{name}' is compatible with OpenAI embeddings (1536 dimensions)")
-                
-            except Exception as dim_error:
-                logger.warning(f"Collection '{name}' has dimension incompatibility: {dim_error}")
-                logger.info(f"Deleting incompatible collection '{name}' and creating new one")
-                
-                # Delete the incompatible collection
-                self.chroma_client.delete_collection(name=name)
-                
-                # Create new collection with OpenAI-compatible settings
-                collection = self.chroma_client.create_collection(
-                    name=name,
-                    metadata={
-                        "description": "Medical documents vectorized with OpenAI embeddings",
-                        "embedding_model": "text-embedding-3-small",
-                        "embedding_dimensions": 1536
-                    }
-                )
-                logger.info(f"Created new OpenAI-compatible collection: {name}")
-                
-        except Exception:
-            # Collection doesn't exist, create new one
-            collection = self.chroma_client.create_collection(
-                name=name,
-                metadata={
-                    "description": "Medical documents vectorized with OpenAI embeddings",
-                    "embedding_model": "text-embedding-3-small", 
-                    "embedding_dimensions": 1536
-                }
-            )
-            logger.info(f"Created new collection: {name}")
-        return collection
+    def get_document_count(self) -> int:
+        """Get the number of vectorized documents."""
+        return len(self.documents)
     
-    def _generate_download_url(self, blob_name: str, sas_token: str) -> str:
+    def clear_all_documents(self):
+        """Clear all vectorized documents from memory."""
+        self.documents.clear()
+        self.vectorization_log.clear()
+        logger.info("All documents cleared from memory")
+    
+    def search_similar(self, query_embedding: List[float], top_k: int = 5) -> List[Dict[str, Any]]:
         """
-        Generate download URL for a blob using the BlobService logic.
+        Search for similar documents using cosine similarity.
         
         Args:
-            blob_name: Name of the blob
-            sas_token: SAS token for authentication
+            query_embedding: Query vector (1536 dimensions)
+            top_k: Number of results to return
             
         Returns:
-            Complete download URL with SAS token
+            List of similar documents with scores
         """
-        return self.blob_service._build_blob_url(blob_name, sas_token)
-    
-    def _extract_text_from_file(self, file_content: bytes, file_name: str, content_type: str) -> str:
-        """
-        Extract text from various file types.
+        if not self.documents:
+            return []
         
-        Args:
-            file_content: Binary content of the file
-            file_name: Name of the file (for extension detection)
-            content_type: MIME type of the file
-            
-        Returns:
-            Extracted text content
-            
-        Raises:
-            HTTPException: If file type is not supported or extraction fails
-        """
-        try:
-            file_extension = file_name.lower().split('.')[-1] if '.' in file_name else ''
-            
-            # PDF files
-            if file_extension == 'pdf' or 'pdf' in content_type.lower():
-                return self._extract_from_pdf(file_content)
-            
-            # Word documents
-            elif file_extension in ['docx', 'doc'] or 'word' in content_type.lower():
-                return self._extract_from_docx(file_content)
-            
-            # Text files
-            elif file_extension in ['txt', 'md', 'csv'] or 'text' in content_type.lower():
-                return file_content.decode('utf-8', errors='ignore')
-            
-            # HTML files
-            elif file_extension in ['html', 'htm'] or 'html' in content_type.lower():
-                return self._extract_from_html(file_content)
-            
-            # Unsupported format
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"File type '.{file_extension}' is not supported. Supported formats: PDF, DOCX, DOC, TXT, MD, CSV, HTML, HTM"
-                )
-                
-        except Exception as e:
-            logger.error(f"Error extracting text from {file_name}: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Could not extract text from file '{file_name}': {str(e)}"
-            )
-    
-    def _extract_from_pdf(self, file_content: bytes) -> str:
-        """Extract text from PDF file."""
-        try:
-            pdf_reader = PyPDF2.PdfReader(BytesIO(file_content))
-            text = ""
-            for page in pdf_reader.pages:
-                text += page.extract_text() + "\n"
-            return text.strip()
-        except Exception as e:
-            logger.error(f"Error extracting from PDF: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Error extracting PDF content: {str(e)}"
-            )
-    
-    def _extract_from_docx(self, file_content: bytes) -> str:
-        """Extract text from DOCX file."""
-        try:
-            doc = docx.Document(BytesIO(file_content))
-            text = ""
-            for paragraph in doc.paragraphs:
-                text += paragraph.text + "\n"
-            return text.strip()
-        except Exception as e:
-            logger.error(f"Error extracting from DOCX: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Error extracting DOCX content: {str(e)}"
-            )
-    
-    def _extract_from_html(self, file_content: bytes) -> str:
-        """Extract text from HTML file."""
-        try:
-            soup = BeautifulSoup(file_content, 'html.parser')
-            # Remove script and style elements
-            for script in soup(["script", "style"]):
-                script.decompose()
-            return soup.get_text(separator='\n').strip()
-        except Exception as e:
-            logger.error(f"Error extracting from HTML: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Error extracting HTML content: {str(e)}"
-            )
-    
-    def _chunk_text(self, text: str) -> List[str]:
-        """
-        Split text into chunks with overlap.
+        query_vec = np.array(query_embedding).reshape(1, -1)
+        similarities = []
         
-        Args:
-            text: Input text to chunk
+        for doc_id, doc in self.documents.items():
+            doc_vec = doc.embedding.reshape(1, -1)
+            similarity = cosine_similarity(query_vec, doc_vec)[0][0]
             
-        Returns:
-            List of text chunks
-        """
-        words = text.split()
-        chunks = []
+            similarities.append({
+                'id': doc_id,
+                'content': doc.content,
+                'metadata': doc.metadata,
+                'similarity_score': float(similarity)
+            })
         
-        for i in range(0, len(words), self.chunk_size - self.chunk_overlap):
-            chunk_words = words[i:i + self.chunk_size]
-            chunk_text = ' '.join(chunk_words)
-            
-            if chunk_text.strip():  # Only add non-empty chunks
-                chunks.append(chunk_text.strip())
+        # Sort by similarity score (descending)
+        similarities.sort(key=lambda x: x['similarity_score'], reverse=True)
         
-        # If text is smaller than chunk size, return as single chunk
-        if not chunks and text.strip():
-            chunks.append(text.strip())
-        
-        return chunks
-    
-    async def _generate_embeddings(self, texts: List[str]) -> List[List[float]]:
-        """
-        Generate embeddings for a list of texts using OpenAI.
-        
-        Args:
-            texts: List of text chunks to vectorize
-            
-        Returns:
-            List of embedding vectors
-        """
-        try:
-            response = await self.openai_client.embeddings.create(
-                model=settings.OPENAI_EMBEDDING_MODEL,
-                input=texts
-            )
-            
-            embeddings = [embedding.embedding for embedding in response.data]
-            logger.info(f"Generated {len(embeddings)} embeddings")
-            return embeddings
-            
-        except Exception as e:
-            logger.error(f"Error generating embeddings: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error generating embeddings: {str(e)}"
-            )
-    
+        return similarities[:top_k]
     async def vectorize_file(self, blob_name: str, sas_token: str) -> Dict[str, Any]:
         """
-        Vectorize a single file from blob storage.
+        Vectorize a single file from blob storage and store in memory.
         
         Args:
             blob_name: Name of the blob file to vectorize
@@ -425,10 +150,8 @@ class VectorizationManager:
             if not embeddings or len(embeddings) != len(chunks):
                 raise ValueError(f"Embedding generation failed for {blob_name}")
             
-            # 5. Prepare data for ChromaDB
-            chunk_ids = []
-            chunk_metadatas = []
-            
+            # 5. Store in memory
+            chunks_stored = 0
             for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
                 chunk_id = f"{blob_name}_{i}_{hash(chunk[:50])}"
                 chunk_metadata = {
@@ -442,50 +165,32 @@ class VectorizationManager:
                     'vectorization_timestamp': datetime.now().isoformat()
                 }
                 
-                chunk_ids.append(chunk_id)
-                chunk_metadatas.append(chunk_metadata)
-            
-            # 6. Add to ChromaDB collection
-            logger.info(f"Adding {len(chunks)} chunks to ChromaDB collection for {blob_name}")
-            self.collection.add(
-                ids=chunk_ids,
-                embeddings=embeddings,
-                documents=chunks,
-                metadatas=chunk_metadatas
-            )
-            
-            # Verify the data was added
-            collection_count = self.collection.count()
-            logger.info(f"Successfully vectorized {blob_name}: {len(chunks)} chunks stored. Total collection count: {collection_count}")
-            
-            # Test query to verify data is accessible
-            try:
-                test_results = self.collection.query(
-                    query_embeddings=[embeddings[0]],
-                    n_results=1,
-                    include=['documents']
+                # Store document in memory
+                self.documents[chunk_id] = VectorInMemoryDocument(
+                    id=chunk_id,
+                    content=chunk,
+                    embedding=embedding,
+                    metadata=chunk_metadata
                 )
-                if test_results and test_results.get('documents') and test_results['documents'][0]:
-                    logger.info(f"Verification successful: Can query data for {blob_name}")
-                else:
-                    logger.warning(f"Verification failed: Cannot query data for {blob_name}")
-            except Exception as e:
-                logger.error(f"Verification query failed for {blob_name}: {e}")
+                chunks_stored += 1
             
-            # 7. Log vectorization
-            self._log_vectorization(
-                blob_name=blob_name,
-                etag=metadata.get('etag', ''),
-                last_modified=metadata.get('last_modified', ''),
-                chunks_processed=len(chunks)
-            )
+            # 6. Update vectorization log
+            self.vectorization_log[blob_name] = {
+                'etag': metadata.get('etag', ''),
+                'last_modified': metadata.get('last_modified', ''),
+                'chunks_processed': chunks_stored,
+                'vectorization_timestamp': datetime.now().isoformat()
+            }
+            
+            logger.info(f"Successfully vectorized {blob_name}: {chunks_stored} chunks stored. Total documents: {len(self.documents)}")
             
             return {
                 'success': True,
                 'file_name': blob_name,
-                'chunks_processed': len(chunks),
+                'chunks_processed': chunks_stored,
                 'file_size': len(file_content),
                 'text_length': len(text_content),
+                'total_documents': len(self.documents),
                 'vectorization_timestamp': datetime.now().isoformat()
             }
             
@@ -496,50 +201,119 @@ class VectorizationManager:
                 detail=f"Error vectorizing file {blob_name}: {str(e)}"
             )
 
-    def _log_vectorization(self, blob_name: str, etag: str, last_modified: str, chunks_processed: int):
-        """
-        Log vectorization operation to the log collection.
-        
-        Args:
-            blob_name: Name of the vectorized blob
-            etag: ETag of the blob
-            last_modified: Last modified timestamp
-            chunks_processed: Number of chunks processed
-        """
+    def _extract_text_from_file(self, file_content: bytes, file_name: str, content_type: str) -> str:
+        """Extract text from various file types."""
         try:
-            log_id = f"log_{blob_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            file_extension = file_name.lower().split('.')[-1] if '.' in file_name else ''
             
-            # Remove old log entries for this blob
-            try:
-                old_results = self.log_collection.get(where={"blob_name": blob_name})
-                if old_results['ids']:
-                    self.log_collection.delete(ids=old_results['ids'])
-                    logger.info(f"Removed {len(old_results['ids'])} old log entries for '{blob_name}'")
-            except:
-                pass  # Ignore errors when removing old entries
+            # PDF files
+            if file_extension == 'pdf' or 'pdf' in content_type.lower():
+                return self._extract_from_pdf(file_content)
             
-            # Add new log entry
-            self.log_collection.add(
-                ids=[log_id],
-                documents=[f"Vectorization log for {blob_name}"],
-                metadatas=[{
-                    "blob_name": blob_name,
-                    "etag": etag,
-                    "last_modified": last_modified,
-                    "vectorization_timestamp": datetime.now().isoformat(),
-                    "chunks_processed": chunks_processed
-                }]
+            # Word documents
+            elif file_extension in ['docx', 'doc'] or 'word' in content_type.lower():
+                return self._extract_from_docx(file_content)
+            
+            # Text files
+            elif file_extension in ['txt', 'md', 'csv'] or 'text' in content_type.lower():
+                return file_content.decode('utf-8', errors='ignore')
+            
+            # HTML files
+            elif file_extension in ['html', 'htm'] or 'html' in content_type.lower():
+                return self._extract_from_html(file_content)
+            
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"File type '.{file_extension}' is not supported. Supported: PDF, DOCX, DOC, TXT, MD, CSV, HTML, HTM"
+                )
+                
+        except Exception as e:
+            logger.error(f"Error extracting text from {file_name}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Could not extract text from file '{file_name}': {str(e)}"
+            )
+    
+    def _extract_from_pdf(self, file_content: bytes) -> str:
+        """Extract text from PDF file."""
+        try:
+            pdf_reader = PyPDF2.PdfReader(BytesIO(file_content))
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text() + "\n"
+            return text.strip()
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Error extracting PDF content: {str(e)}"
+            )
+    
+    def _extract_from_docx(self, file_content: bytes) -> str:
+        """Extract text from DOCX file."""
+        try:
+            doc = docx.Document(BytesIO(file_content))
+            text = ""
+            for paragraph in doc.paragraphs:
+                text += paragraph.text + "\n"
+            return text.strip()
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Error extracting DOCX content: {str(e)}"
+            )
+    
+    def _extract_from_html(self, file_content: bytes) -> str:
+        """Extract text from HTML file."""
+        try:
+            soup = BeautifulSoup(file_content, 'html.parser')
+            for script in soup(["script", "style"]):
+                script.decompose()
+            return soup.get_text(separator='\n').strip()
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Error extracting HTML content: {str(e)}"
+            )
+    
+    def _chunk_text(self, text: str) -> List[str]:
+        """Split text into chunks with overlap."""
+        words = text.split()
+        chunks = []
+        
+        for i in range(0, len(words), self.chunk_size - self.chunk_overlap):
+            chunk_words = words[i:i + self.chunk_size]
+            chunk_text = ' '.join(chunk_words)
+            if chunk_text.strip():
+                chunks.append(chunk_text.strip())
+        
+        if not chunks and text.strip():
+            chunks.append(text.strip())
+        
+        return chunks
+    
+    async def _generate_embeddings(self, texts: List[str]) -> List[List[float]]:
+        """Generate embeddings using OpenAI (1536 dimensions)."""
+        try:
+            response = await self.openai_client.embeddings.create(
+                model=settings.OPENAI_EMBEDDING_MODEL,
+                input=texts
             )
             
-            logger.info(f"Logged vectorization of '{blob_name}' ({chunks_processed} chunks)")
+            embeddings = [embedding.embedding for embedding in response.data]
+            logger.info(f"Generated {len(embeddings)} embeddings with {len(embeddings[0])} dimensions")
+            return embeddings
             
         except Exception as e:
-            logger.error(f"Error logging vectorization: {e}")
-            # Don't raise exception as this is not critical
-    
+            logger.error(f"Error generating embeddings: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error generating embeddings: {str(e)}"
+            )
+
     async def revectorize_all(self, sas_token: str) -> Dict[str, Any]:
         """
-        Delete all vectors and revectorize all files in the blob container.
+        Clear all vectors and revectorize all files in the blob container.
         
         Args:
             sas_token: SAS token for blob access
@@ -550,29 +324,10 @@ class VectorizationManager:
         try:
             logger.info("Starting complete revectorization process")
             
-            # 1. Clear existing vectors and logs
-            logger.info("Clearing existing vectors and logs...")
-            
-            # Get all documents to delete them
-            try:
-                all_vectors = self.collection.get()
-                if all_vectors['ids']:
-                    self.collection.delete(ids=all_vectors['ids'])
-                    logger.info(f"Deleted {len(all_vectors['ids'])} existing vectors")
-            except Exception as e:
-                logger.warning(f"Error clearing vectors: {e}")
-            
-            # Clear vectorization logs
-            try:
-                all_logs = self.log_collection.get()
-                if all_logs['ids']:
-                    self.log_collection.delete(ids=all_logs['ids'])
-                    logger.info(f"Deleted {len(all_logs['ids'])} existing logs")
-            except Exception as e:
-                logger.warning(f"Error clearing logs: {e}")
+            # 1. Clear existing data
+            self.clear_all_documents()
             
             # 2. List all blobs in the container
-            logger.info("Listing all files in blob container...")
             blobs = await self.blob_service.list_blobs(sas_token)
             
             if not blobs:
@@ -624,6 +379,7 @@ class VectorizationManager:
                 "files_processed": len(processed_files),
                 "files_failed": len(failed_files),
                 "total_chunks": total_chunks,
+                "total_documents": len(self.documents),
                 "processed_files": processed_files,
                 "failed_files": failed_files,
                 "timestamp": datetime.now().isoformat()

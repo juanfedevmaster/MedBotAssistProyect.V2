@@ -68,7 +68,7 @@ const FloatingChat: React.FC = () => {
       // - Server saved: 30/07/2025 05:16 UTC (correct date but incorrect time)
       // - Correction needed: Subtract 5 hours to return to 29/07/2025 19:16 local
       
-      
+
       // Subtract 5 hours to correct from 05:16 UTC to 00:16 UTC, 
       // which in your GMT-5 timezone will be 19:16 of the previous day
       const correctionHours = -5;
@@ -556,9 +556,18 @@ const FloatingChat: React.FC = () => {
                 <i className="bi bi-send-fill"></i>
               </button>
             </div>
-            <div className="text-center mt-2">
-              <small className="text-muted">
-                ID: {conversationId.split('_')[1]}...
+            <div className="text-center mt-2 px-2">
+              <small 
+                className="text-muted d-block" 
+                style={{ 
+                  fontSize: '0.75rem',
+                  wordBreak: 'break-all',
+                  lineHeight: '1.3',
+                  maxWidth: '100%'
+                }}
+                title={`Full Chat ID: ${conversationId}`}
+              >
+                Chat ID: {conversationId.length > 20 ? `${conversationId.substring(0, 20)}...` : conversationId}
               </small>
             </div>
           </div>
